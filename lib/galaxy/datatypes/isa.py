@@ -136,18 +136,3 @@ class Isa(data.Data):
         print("Setting metadata of ISA type: %s" % dataset.file_name)
         # raise Error("Setting metadata of ISA type")
         super(Isa, self).set_meta(dataset, **kwd)
-
-    def split(cls, input_datasets, subdir_generator_function, split_params):
-        super(Isa, cls).split(input_datasets, subdir_generator_function, split_params)
-
-    def set_raw_data(self, dataset, data):
-        print("Setting raw data")
-        super(Isa, self).set_raw_data(dataset, data)
-
-    def _archive_main_file(self, archive, display_name, data_filename):
-        print("Archiving the main file: %s" % data_filename)
-        return super(Isa, self)._archive_main_file(archive, display_name, data_filename)
-
-    def _archive_composite_dataset(self, trans, data=None, **kwd):
-        print("Archiving the composite dataset")
-        return super(Isa, self)._archive_composite_dataset(trans, data, **kwd)
