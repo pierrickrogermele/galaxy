@@ -61,7 +61,7 @@ logger.set_level(logging.DEBUG)
 
 
 class Isa(data.Data):
-    """Tab delimited data in foo format"""
+    """ Tab delimited data in foo format """
     file_ext = "isa"
     composite_type = 'basic'  # 'auto_primary_file'
     allow_datatype_change = False
@@ -76,14 +76,17 @@ class Isa(data.Data):
 
     def get_primary_filename(self, files_path):
         """ Use the `investigation` file as primary"""
+        primary_filename = None
         investigation_file_pattern = "i_*.txt"  # TODO: check pattern to identify the investigation file
         res = glob.glob(os.path.join(files_path, investigation_file_pattern))
         if len(res) > 0:
             if len(res) == 1:
-                return res[0]
-            logger.info("More than one file match the pattern '%s' "
-                        "to identify the investigation file" % investigation_file_pattern)
-        return None
+                primary_filename = res[0]
+            else:
+                logger.info("More than one file match the pattern '%s' "
+                            "to identify the investigation file" % investigation_file_pattern)
+        logger.debug("Primary (investigation) filename: %s" % primary_filename)
+        return primary_filename
 
     def _extract_archive(self, stream):
         # extract the archive to a temp folder
@@ -99,11 +102,6 @@ class Isa(data.Data):
             raise Exception("Not supported archive format!!!")
 
         return tmp_folder
-
-    def _extract_investigaton_file(self, files_path):
-        primary_filename = self.get_primary_filename(files_path)
-        logger.info("Primary (investigation) filename: %s" % primary_filename)
-        return primary_filename
 
     def write_from_stream(self, dataset, stream):
         # Extract archive to a temporary folder
@@ -122,7 +120,7 @@ class Isa(data.Data):
         for f in os.listdir(os.path.join(tmp_folder)):
             logger.debug("Filename: %s" % f)
         # set the primary file
-        primary_filename = self._extract_investigaton_file(dataset.files_path)
+        primary_filename = self.get_primary_filename(dataset.files_path)
         if primary_filename is None:
             raise Exception("Unable to find the investigation file!!!")
         shutil.copy(os.path.join(dataset.files_path, primary_filename), dataset.file_name)
@@ -185,7 +183,7 @@ class Isa(data.Data):
         logger.info("Checking if it is an ISA: %s" % filename)
         with open(filename, 'rb') as stream:
             tmp_folder = self._extract_archive(stream)
-            investigation_file = self._extract_investigaton_file(tmp_folder)
+            investigation_file = self.get_primary_filename(tmp_folder)
             is_isa = investigation_file is not None
             shutil.rmtree(tmp_folder)
         return is_isa
