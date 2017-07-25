@@ -85,9 +85,7 @@ class Isa(data.Data):
                         "to identify the investigation file" % investigation_file_pattern)
         return None
 
-    def write_from_stream(self, dataset, stream):
-        logger.debug("Primary file: %s (is dir: %s)" % (dataset.primary_file, os.path.isdir(dataset.primary_file)))
-
+    def _extract_archive(self, stream):
         # extract the archive to a temp folder
         tmp_folder = tempfile.mkdtemp()
         # try to detect the type of the compressed archive
@@ -100,6 +98,16 @@ class Isa(data.Data):
         else:
             raise Exception("Not supported archive format!!!")
 
+        return tmp_folder
+
+    def _extract_investigaton_file(self, files_path):
+        primary_filename = self.get_primary_filename(files_path)
+        logger.info("Primary (investigation) filename: %s" % primary_filename)
+        return primary_filename
+
+    def write_from_stream(self, dataset, stream):
+        # Extract archive to a temporary folder
+        tmp_folder = self._extract_archive(stream)
         # Copy all files of the uncompressed archive to their final destination
         tmp_files = [l for l in os.listdir(tmp_folder) if not (l.startswith(".") or l.startswith('__MACOSX'))]
         if len(tmp_files) > 0:
@@ -110,18 +118,15 @@ class Isa(data.Data):
                 shutil.move(tmp_folder, dataset.files_path)
         else:
             logger.error("No files found within the temp folder!!!!")
-
         # list all files
         for f in os.listdir(os.path.join(tmp_folder)):
             logger.debug("Filename: %s" % f)
-
         # set the primary file
-        primary_filename = self.get_primary_filename(dataset.files_path)
+        primary_filename = self._extract_investigaton_file(dataset.files_path)
         if primary_filename is None:
             raise Exception("Unable to find the investigation file!!!")
-        logger.info("Primary (investigation) filename: %s" % primary_filename)
         shutil.copy(os.path.join(dataset.files_path, primary_filename), dataset.file_name)
-        logger.debug("All files saved!!!")
+        logger.info("Primary file '%s' saved!" % primary_filename)
 
     def _detect_file_type(self, stream):
         """
