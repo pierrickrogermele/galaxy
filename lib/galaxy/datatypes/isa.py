@@ -61,7 +61,7 @@ logger.set_level(logging.DEBUG)
 
 
 class Isa(data.Data):
-    """ Tab delimited data in foo format """
+    """ Base class for implementing ISA datatypes """
     file_ext = "isa"
     composite_type = 'basic'  # 'auto_primary_file'
     allow_datatype_change = False
@@ -75,18 +75,8 @@ class Isa(data.Data):
         data.Data.__init__(self, **kwd)
 
     def get_primary_filename(self, files_path):
-        """ Use the `investigation` file as primary"""
-        primary_filename = None
-        investigation_file_pattern = "i_*.txt"  # TODO: check pattern to identify the investigation file
-        res = glob.glob(os.path.join(files_path, investigation_file_pattern))
-        if len(res) > 0:
-            if len(res) == 1:
-                primary_filename = res[0]
-            else:
-                logger.info("More than one file match the pattern '%s' "
-                            "to identify the investigation file" % investigation_file_pattern)
-        logger.debug("Primary (investigation) filename: %s" % primary_filename)
-        return primary_filename
+        """ Return the investigation filename """
+        raise NotImplementedError()
 
     def _extract_archive(self, stream):
         # extract the archive to a temp folder
@@ -188,11 +178,32 @@ class Isa(data.Data):
             shutil.rmtree(tmp_folder)
         return is_isa
 
+    def set_meta(self, dataset, **kwd):
+        logger.debug("Setting metadata of ISA type: %s" % dataset.file_name)
+        super(Isa, self).set_meta(dataset, **kwd)
+
+
+class IsaTab(Isa):
+    """ Class which implements the ISA-Tab datatype """
+    file_ext = "isa-tab"
+
+    def get_primary_filename(self, files_path):
+        """ Use the `investigation` file as primary file"""
+        investigation_file_pattern = "i_*.txt"  # TODO: check pattern to identify the investigation file
+        res = glob.glob(os.path.join(files_path, investigation_file_pattern))
+        if len(res) > 0:
+            if len(res) == 1:
+                return res[0]
+            logger.info("More than one file match the pattern '%s' "
+                        "to identify the investigation file" % investigation_file_pattern)
+        return None
+
     def validate(self, dataset):
         # TODO: implement a validator function
         logger.debug("Validating dataset....")
         return super(Isa, self).validate(dataset)
 
-    def set_meta(self, dataset, **kwd):
-        logger.debug("Setting metadata of ISA type: %s" % dataset.file_name)
-        super(Isa, self).set_meta(dataset, **kwd)
+
+class IsaJson(Isa):
+    """ Class which implements the ISA-JSON datatype """
+    file_ext = "isa-json"
