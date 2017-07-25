@@ -57,6 +57,7 @@ class Logger(object):
 
 # global logger
 logger = Logger()
+logger.set_level(logging.DEBUG)
 
 
 class Isa(data.Data):
@@ -85,6 +86,8 @@ class Isa(data.Data):
         return None
 
     def write_from_stream(self, dataset, stream):
+        logger.debug("Primary file: %s (is dir: %s)" % (dataset.primary_file, os.path.isdir(dataset.primary_file)))
+
         # extract the archive to a temp folder
         tmp_folder = tempfile.mkdtemp()
         # try to detect the type of the compressed archive
@@ -133,6 +136,7 @@ class Isa(data.Data):
         matched_prefix = _FILE_TYPE_REGEX.match(file_start)
         if matched_prefix:
             file_type = _FILE_TYPE_PREFIX[matched_prefix.string[matched_prefix.start():matched_prefix.end()]]
+        logger.debug("Detected file type: %s (prefix: %r)" % (file_type, file_start))
         return file_type
 
     def _extract_zip_archive(self, stream, target_path):
