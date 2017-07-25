@@ -21,16 +21,33 @@ from galaxy.datatypes import metadata
 # logger
 logger = logging.getLogger("galaxy.jobs.runners.local")
 
-# create a file handler
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
 
-# create a logging format
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
+class Logger(object):
+    """ A simple logger which directly outputs messages to the stdout/stderr streams """
 
-# add the handlers to the logger
-logger.addHandler(handler)
+    def __init__(self):
+        super(Logger, self).__init__()
+        self._level = logging.INFO
+
+    def set_level(self, level):
+        self._level = level
+
+    def info(self, message):
+        print("INFO: %s" % message)
+
+    def warn(self, message):
+        print("WARN: %s" % message)
+
+    def debug(self, message):
+        if self._level == logging.DEBUG:
+            print("DEBUG: %s" % message)
+
+    def error(self, message):
+        print("ERROR: %s" % message, file=sys.stderr)
+
+
+# global logger
+logger = Logger()
 
 
 class Isa(data.Data):
