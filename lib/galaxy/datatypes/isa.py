@@ -175,8 +175,20 @@ class Isa(data.Data):
         return "\n".join(rval)
 
     def sniff(self, filename):
+        """
+        Try to detect whether the actual archive contains an ISA archive
+        simply searching for the existence of an investigation file.
+
+        :param filename: the name of the file containing the uploaded archive
+        :return:
+        """
         logger.info("Checking if it is an ISA: %s" % filename)
-        return True
+        with open(filename, 'rb') as stream:
+            tmp_folder = self._extract_archive(stream)
+            investigation_file = self._extract_investigaton_file(tmp_folder)
+            is_isa = investigation_file is not None
+            shutil.rmtree(tmp_folder)
+        return is_isa
 
     def validate(self, dataset):
         # TODO: implement a validator function
