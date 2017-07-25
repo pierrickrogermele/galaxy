@@ -18,8 +18,6 @@ import shutil
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
 
-# logger
-logger = logging.getLogger("galaxy.jobs.runners.local")
 
 
 class Logger(object):
@@ -71,8 +69,8 @@ class Isa(data.Data):
         if len(res) > 0:
             if len(res) == 1:
                 return res[0]
-            print("More than one file match the pattern '%s' "
-                  "to identify the investigation file" % investigation_file_pattern)
+            logger.info("More than one file match the pattern '%s' "
+                        "to identify the investigation file" % investigation_file_pattern)
         return None
 
     def write_from_stream(self, dataset, stream):
@@ -94,19 +92,22 @@ class Isa(data.Data):
             else:
                 shutil.move(tmp_folder, dataset.files_path)
         else:
-            print("No files found within the temp folder!!!!")
+            logger.error("No files found within the temp folder!!!!")
+
+        # list all files
+        for f in os.listdir(os.path.join(tmp_folder)):
+            logger.debug("Filename: %s" % f)
 
         primary_filename = self.get_primary_filename(dataset.files_path)
         if primary_filename is None:
             raise Exception("Unable to find the investigation file!!!")
-
-        print("Primary (investigation) filename: %s" % primary_filename)
+        logger.info("Primary (investigation) filename: %s" % primary_filename)
         shutil.copy(os.path.join(dataset.files_path, primary_filename), dataset.file_name)
+        logger.debug("All files saved!!!")
 
-        print("All files saved!!!")
 
     def generate_primary_file(self, dataset=None):
-        print("Dataset type: %s, keys=%s, values=%s", type(dataset), dataset.keys(), dataset.values())
+        logger.debug("Dataset type: %s, keys=%s, values=%s", type(dataset), dataset.keys(), dataset.values())
 
         rval = ['<html><head><title>Wiff Composite Dataset </title></head><p/>']
         rval.append('<div>This composite dataset is composed of the following files:<p/><ul>')
@@ -129,10 +130,10 @@ class Isa(data.Data):
         return True
 
     def validate(self, dataset):
-        print("Validating dataset....")
+        # TODO: implement a validator function
+        logger.debug("Validating dataset....")
         return super(Isa, self).validate(dataset)
 
     def set_meta(self, dataset, **kwd):
-        print("Setting metadata of ISA type: %s" % dataset.file_name)
-        # raise Error("Setting metadata of ISA type")
+        logger.debug("Setting metadata of ISA type: %s" % dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
