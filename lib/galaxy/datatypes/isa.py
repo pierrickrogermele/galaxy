@@ -11,11 +11,12 @@ import re
 import os
 import sys
 import glob
+import shutil
 import zipfile
 import logging
 import tarfile
 import tempfile
-import shutil
+import fnmatch
 
 from io import BytesIO
 from galaxy.datatypes import data
@@ -74,7 +75,7 @@ class Isa(data.Data):
     def __init__(self, **kwd):
         data.Data.__init__(self, **kwd)
 
-    def get_primary_filename(self, files_path):
+    def get_primary_filename(self, files_list):
         """ Return the investigation filename """
         raise NotImplementedError()
 
@@ -110,7 +111,7 @@ class Isa(data.Data):
         for f in os.listdir(os.path.join(tmp_folder)):
             logger.debug("Filename: %s" % f)
         # set the primary file
-        primary_filename = self.get_primary_filename(dataset.files_path)
+        primary_filename = self.get_primary_filename(os.listdir(dataset.files_path))
         if primary_filename is None:
             raise Exception("Unable to find the investigation file!!!")
         shutil.copy(os.path.join(dataset.files_path, primary_filename), dataset.file_name)
@@ -187,10 +188,11 @@ class IsaTab(Isa):
     """ Class which implements the ISA-Tab datatype """
     file_ext = "isa-tab"
 
-    def get_primary_filename(self, files_path):
+    def get_primary_filename(self, files_list):
         """ Use the `investigation` file as primary file"""
-        investigation_file_pattern = "i_*.txt"  # TODO: check pattern to identify the investigation file
-        res = glob.glob(os.path.join(files_path, investigation_file_pattern))
+        # TODO: check pattern to identify the investigation file
+        investigation_file_pattern = re.compile(fnmatch.translate("i_*.txt"))
+        res = [l for l in files_list if investigation_file_pattern.match(l)]
         if len(res) > 0:
             if len(res) == 1:
                 return res[0]
@@ -208,13 +210,11 @@ class IsaJson(Isa):
     """ Class which implements the ISA-JSON datatype """
     file_ext = "isa-json"
 
-    def get_primary_filename(self, files_path):
+    def get_primary_filename(self, files_list):
         """ Use the `investigation` file as primary file"""
-        investigation_file_pattern = "*.json"  # TODO: check pattern to identify the investigation file
-        res = glob.glob(os.path.join(files_path, investigation_file_pattern))
+        res = [f for f in files_list if f.endswith(".json")]
         if len(res) > 0:
             if len(res) == 1:
                 return res[0]
-            logger.info("More than one file match the pattern '%s' "
-                        "to identify the investigation file" % investigation_file_pattern)
+            logger.info("More than one JSON file match the pattern to identify the investigation file")
         return None
