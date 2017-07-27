@@ -207,3 +207,14 @@ class IsaTab(Isa):
 class IsaJson(Isa):
     """ Class which implements the ISA-JSON datatype """
     file_ext = "isa-json"
+
+    def get_primary_filename(self, files_path):
+        """ Use the `investigation` file as primary file"""
+        investigation_file_pattern = "*.json"  # TODO: check pattern to identify the investigation file
+        res = glob.glob(os.path.join(files_path, investigation_file_pattern))
+        if len(res) > 0:
+            if len(res) == 1:
+                return res[0]
+            logger.info("More than one file match the pattern '%s' "
+                        "to identify the investigation file" % investigation_file_pattern)
+        return None
