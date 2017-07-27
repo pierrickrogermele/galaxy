@@ -10,7 +10,6 @@ from __future__ import print_function
 import re
 import os
 import sys
-import glob
 import shutil
 import zipfile
 import logging
@@ -94,6 +93,35 @@ class Isa(data.Data):
 
         return tmp_folder
 
+    def _list_archive_files(self, stream):
+        # try to detect the type of the compressed archive
+        a_type = self._detect_file_type(stream)
+        # decompress the archive
+        if a_type == "zip":
+            data = BytesIO(stream.read())
+            zip_ref = zipfile.ZipFile(data)
+            files_list = zip_ref.namelist()
+        elif a_type == "gz":
+            with tarfile.open(fileobj=stream) as tar:
+                files_list = [i.name for i in tar]
+        else:
+            raise Exception("Not supported archive format!!!")
+        # filter the base path if it exists
+        if len(files_list) > 0:
+            base_path = files_list[0].split("/")[0]
+            logger.debug("Base path: %s" % base_path)
+            if base_path:
+                # the TAR archive encodes the base_path without a final '/'
+                if base_path in files_list:
+                    files_list.remove(base_path)
+                # the ZIP archive encodes the base_path with a final '/'
+                base_path = os.path.join(base_path, '')
+                if base_path in files_list:
+                    files_list.remove(base_path)
+                # remove the base_path from all remaining files
+                files_list = [f.replace(base_path, '') for f in files_list]
+        return files_list
+
     def write_from_stream(self, dataset, stream):
         # Extract archive to a temporary folder
         tmp_folder = self._extract_archive(stream)
@@ -172,12 +200,11 @@ class Isa(data.Data):
         :return:
         """
         logger.info("Checking if it is an ISA: %s" % filename)
+        # get the list of files within the compressed archive
         with open(filename, 'rb') as stream:
-            tmp_folder = self._extract_archive(stream)
-            investigation_file = self.get_primary_filename(tmp_folder)
-            is_isa = investigation_file is not None
-            shutil.rmtree(tmp_folder)
-        return is_isa
+            files_list = self._list_archive_files(stream)
+        # return True if the primary_filename exists
+        return self.get_primary_filename(files_list) is not None
 
     def set_meta(self, dataset, **kwd):
         logger.debug("Setting metadata of ISA type: %s" % dataset.file_name)
