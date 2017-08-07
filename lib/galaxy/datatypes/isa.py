@@ -136,7 +136,7 @@ class Isa(data.Data):
         else:
             logger.error("No files found within the temp folder!!!!")
         # list all files
-        for f in os.listdir(os.path.join(tmp_folder)):
+        for f in os.listdir(os.path.join(dataset.files_path)):
             logger.debug("Filename: %s" % f)
         # set the primary file
         primary_filename = self.get_primary_filename(os.listdir(dataset.files_path))
