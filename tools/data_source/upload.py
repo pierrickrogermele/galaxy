@@ -348,6 +348,16 @@ def add_file(dataset, registry, json_file, output_path):
 
 
 def add_composite_file( dataset, registry, json_file, output_path, files_path ):
+    datatype = None
+
+    # try to instantiate the proper dataset object for the actual dataset type
+    if dataset.file_type is not None:
+        try:
+            datatype = registry.get_datatype_by_extension(dataset.file_type)
+        except Exception as e:
+            print("Unable to instantiate the datatype object for to the file type '%'" % dataset.file_type)
+
+    # process statically defined dataset components if any
     if dataset.composite_files:
         os.mkdir( files_path )
         for name, value in dataset.composite_files.items():
