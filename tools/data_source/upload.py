@@ -348,15 +348,13 @@ def add_file(dataset, registry, json_file, output_path):
 
 
 def add_composite_file( dataset, registry, json_file, output_path, files_path ):
-    datatype = None
-
     # try to instantiate the proper dataset object for the actual dataset type
+    datatype = None
     if dataset.file_type is not None:
         try:
             datatype = registry.get_datatype_by_extension(dataset.file_type)
         except Exception as e:
             print("Unable to instantiate the datatype object for to the file type '%'" % dataset.file_type)
-
     # process statically defined dataset components if any
     if dataset.composite_files:
         os.mkdir( files_path )
@@ -383,9 +381,17 @@ def add_composite_file( dataset, registry, json_file, output_path, files_path ):
                         sniff.convert_newlines_sep2tabs( dp, tmp_dir=tmpdir, tmp_prefix=tmp_prefix )
                     else:
                         sniff.convert_newlines( dp, tmp_dir=tmpdir, tmp_prefix=tmp_prefix )
-                shutil.move( dp, os.path.join( files_path, name ) )
+                # move the file to its final destination
+                output_path = os.path.join(files_path, name)
+                shutil.move(dp, output_path)
+                # groom the dataset file content if required by the corresponding datatype definition
+                if datatype.dataset_content_needs_grooming(output_path):
+                    datatype.groom_dataset_content(output_path)
     # Move the dataset to its "real" path
     shutil.move( dataset.primary_file, output_path )
+    # groom the primary file if required by the corresponding datatype definition
+    if datatype.dataset_content_needs_grooming(output_path):
+        datatype.groom_dataset_content(dataset.primary_file)
     # Write the job info
     info = dict( type='dataset',
                  dataset_id=dataset.dataset_id,
