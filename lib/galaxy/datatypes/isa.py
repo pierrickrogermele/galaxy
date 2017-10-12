@@ -82,20 +82,21 @@ class Isa(data.Data):
         """ Return the investigation filename """
         raise NotImplementedError()
 
-    def _extract_archive(self, stream):
+    def _extract_archive(self, stream, output_path=None):
         # extract the archive to a temp folder
-        tmp_folder = tempfile.mkdtemp()
+        if output_path is None:
+            output_path = tempfile.mkdtemp()
         # try to detect the type of the compressed archive
         a_type = self._detect_file_type(stream)
         # decompress the archive
         if a_type == "zip":
-            self._extract_zip_archive(stream, tmp_folder)
+            self._extract_zip_archive(stream, output_path)
         elif a_type == "gz":
-            self._extract_tar_archive(stream, tmp_folder)
+            self._extract_tar_archive(stream, output_path)
         else:
             raise Exception("Not supported archive format!!!")
 
-        return tmp_folder
+        return output_path
 
     def _list_archive_files(self, stream):
         # try to detect the type of the compressed archive
