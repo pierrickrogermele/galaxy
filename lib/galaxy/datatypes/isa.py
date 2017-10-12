@@ -154,11 +154,9 @@ class Isa(data.Data):
             tar.extractall(path=target_path)
 
     def generate_primary_file(self, dataset=None):
-        logger.debug("Dataset type: %s, keys=%s, values=%s", type(dataset), dataset.keys(), dataset.values())
-
-        rval = ['<html><head><title>Wiff Composite Dataset </title></head><p/>']
-        rval.append('<div>This composite dataset is composed of the following files:<p/><ul>')
-
+        logger.debug("Dataset type: %s, keys=%s, values=%s" % (type(dataset), dataset.keys(), dataset.values()))
+        rval = ['<html><head><title>ISA Dataset </title></head><p/>']
+        rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
         for composite_name, composite_file in self.get_composite_files(dataset=dataset).items():
             fn = composite_name
             opt_text = ''
