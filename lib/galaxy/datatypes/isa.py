@@ -168,9 +168,11 @@ class Isa(data.Data):
 
     def _extract_zip_archive(self, stream, target_path):
         logger.debug("Decompressing the ZIP archive")
+        temp_folder = tempfile.mkdtemp()
         data = BytesIO(stream.read())
         zip_ref = zipfile.ZipFile(data)
-        zip_ref.extractall(path=target_path)
+        zip_ref.extractall(path=temp_folder)
+        self._move_to_target_path(temp_folder, target_path)
 
     def _extract_tar_archive(self, stream, target_path):
         # extract the TAR archive
@@ -178,8 +180,13 @@ class Isa(data.Data):
         temp_folder = tempfile.mkdtemp()
         with tarfile.open(fileobj=stream) as tar:
             tar.extractall(path=temp_folder)
+        self._move_to_target_path(temp_folder, target_path)
+
+    def _move_to_target_path(self, temp_folder, target_path, delete_temp_folder=True):
         # find the root folder containing the dataset
-        tmp_subfolders = [f for f in os.listdir(temp_folder) if not f.startswith(".")]
+        tmp_subfolders = [f for f in os.listdir(temp_folder) if
+                          not f.startswith(".") and f not in (ISA_ARCHIVE_NAME, "__MACOSX")]
+        logger.debug("Files within the temp folder: %r", tmp_subfolders)
         # move files contained within the root dataset folder to their target path
         root_folder = os.path.join(temp_folder, tmp_subfolders[0])
         if len(tmp_subfolders) == 1 and os.path.isdir(root_folder):
@@ -188,8 +195,9 @@ class Isa(data.Data):
                 shutil.move(os.path.join(root_folder, f), target_path)
         elif len(tmp_subfolders) > 1:
             shutil.move(root_folder, target_path)
-        # clean temp data
-        shutil.rmtree(temp_folder)
+        # clean temp data if required
+        if delete_temp_folder:
+            shutil.rmtree(temp_folder)
 
     def generate_primary_file(self, dataset=None):
         if dataset:
