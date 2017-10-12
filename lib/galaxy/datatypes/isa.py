@@ -173,9 +173,23 @@ class Isa(data.Data):
         zip_ref.extractall(path=target_path)
 
     def _extract_tar_archive(self, stream, target_path):
+        # extract the TAR archive
         logger.debug("Decompressing the TAR archive")
+        temp_folder = tempfile.mkdtemp()
         with tarfile.open(fileobj=stream) as tar:
-            tar.extractall(path=target_path)
+            tar.extractall(path=temp_folder)
+        # find the root folder containing the dataset
+        tmp_subfolders = [f for f in os.listdir(temp_folder) if not f.startswith(".")]
+        # move files contained within the root dataset folder to their target path
+        root_folder = os.path.join(temp_folder, tmp_subfolders[0])
+        if len(tmp_subfolders) == 1 and os.path.isdir(root_folder):
+            # move the root dataset folder to its final destination and clean the temp data
+            for f in os.listdir(root_folder):
+                shutil.move(os.path.join(root_folder, f), target_path)
+        elif len(tmp_subfolders) > 1:
+            shutil.move(root_folder, target_path)
+        # clean temp data
+        shutil.rmtree(temp_folder)
 
     def generate_primary_file(self, dataset=None):
         if dataset:
