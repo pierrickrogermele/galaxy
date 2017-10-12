@@ -21,6 +21,9 @@ from io import BytesIO
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
 
+# the name of file containing the isa archive
+ISA_ARCHIVE_NAME = "archive"
+
 # archives types
 _FILE_TYPE_PREFIX = {
     "\x1f\x8b\x08": "gz",
@@ -73,6 +76,7 @@ class Isa(data.Data):
 
     def __init__(self, **kwd):
         data.Data.__init__(self, **kwd)
+        self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
     def get_primary_filename(self, files_list):
         """ Return the investigation filename """
