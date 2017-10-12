@@ -63,6 +63,39 @@ class Isa(data.Data):
     def get_investigation_filename(self, files_list):
         """ Return the investigation filename """
         raise NotImplementedError()
+    @classmethod
+    def find_isatab_investigation_filename(cls, files_list):
+        """ Use the `investigation` file as primary file"""
+        logger.debug("Finding investigation filename assuming an ISA-Tab dataset...")
+        res = []
+        for f in files_list:
+            logger.debug("Checking for matchings with file '%s'", f)
+            match = re.findall(r"^[i]_[\w]+\.txt", f, flags=re.IGNORECASE)
+            if match:
+                res.append(match[0])
+                logger.debug("A match found: %r", match)
+        logger.debug("List of matches: %r", res)
+        if len(res) > 0:
+            if len(res) == 1:
+                investigation_filename = res[0]
+                logger.debug("Found primary file: %s", investigation_filename)
+                return investigation_filename
+            logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
+        return None
+
+    @classmethod
+    def find_isajson_investigation_filename(cls, files_list):
+        """ Use the `investigation` file as primary file"""
+        logger.debug("Finding investigation filename assuming an ISA-JSON dataset...")
+        res = [f for f in files_list if f.endswith(".json")]
+        logger.debug("List of matches: %r", res)
+        if len(res) > 0:
+            if len(res) == 1:
+                investigation_filename = res[0]
+                logger.debug("Found primary file: %s", investigation_filename)
+                return investigation_filename
+            logger.error("More than one JSON file match the pattern to identify the investigation file")
+        return None
 
     def _extract_archive(self, stream, output_path=None):
         # extract the archive to a temp folder
