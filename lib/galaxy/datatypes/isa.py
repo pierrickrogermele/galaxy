@@ -266,7 +266,7 @@ class IsaTab(Isa):
         res = []
         for f in files_list:
             logger.debug("Checking for matchings with file '%s'", f)
-            match = re.findall(r"[i]_[\w]+\.txt", f, flags=re.IGNORECASE)
+            match = re.findall(r"^[i]_[\w]+\.txt", f, flags=re.IGNORECASE)
             if match:
                 res.append(match[0])
                 logger.debug("A match found: %r", match)
