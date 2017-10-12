@@ -10,12 +10,15 @@ from __future__ import print_function
 import re
 import os
 import sys
+import json
 import shutil
 import zipfile
 import logging
 import tarfile
 import tempfile
 from io import BytesIO
+from cgi import escape
+from galaxy.util import unicodify
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
 
@@ -121,6 +124,47 @@ class Isa(data.Data):
             file_type = _FILE_TYPE_PREFIX[matched_prefix.string[matched_prefix.start():matched_prefix.end()]]
         logger.debug("Detected file type: %s (prefix: %r)" % (file_type, file_start))
         return file_type
+
+    def set_peek(self, dataset, is_multi_byte=False):
+        """Set the peek and blurb text"""
+        data = None
+        if not dataset or not dataset.dataset or not dataset.dataset.extra_files_path:
+            raise RuntimeError("Unable to find the 'files-path'!")
+        files_path = dataset.dataset.extra_files_path
+        files = os.listdir(files_path)
+        primary_file = self.get_investigation_filename(files)
+        if primary_file is None:
+            raise RuntimeError("Unable to find the investigation file within the 'files_path' folder")
+        with open(os.path.join(files_path, primary_file), "r") as f:
+            data = f.readlines()
+        if not dataset.dataset.purged and data:
+            dataset.peek = json.dumps({"data": data})
+            dataset.blurb = 'data'
+        else:
+            dataset.peek = 'file does not exist'
+            dataset.blurb = 'file purged from disk'
+
+    def display_peek(self, dataset):
+        logger.debug("Dataset: %r" % dataset)
+        logger.debug("Files path: %s" % dataset.dataset.extra_files_path)
+        logger.debug("Displaying PEEK")
+        # raise Exception("Display PEKEK")
+        """Create HTML table, used for displaying peek"""
+        out = ['<table cellspacing="0" cellpadding="3">']
+        try:
+            if not dataset.peek:
+                dataset.set_peek()
+            json_data = json.loads(dataset.peek)
+            for line in json_data["data"]:
+                line = line.strip()
+                if not line:
+                    continue
+                out.append('<tr><td>%s</td></tr>' % escape(unicodify(line, 'utf-8')))
+            out.append('</table>')
+            out = "".join(out)
+        except Exception as exc:
+            out = "Can't create peek %s" % str(exc)
+        return out
 
     def _extract_zip_archive(self, stream, target_path):
         logger.debug("Decompressing the ZIP archive")
