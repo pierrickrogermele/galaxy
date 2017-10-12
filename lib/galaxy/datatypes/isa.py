@@ -126,29 +126,6 @@ class Isa(data.Data):
                 files_list = [f.replace(base_path, '') for f in files_list]
         return files_list
 
-    def write_from_stream(self, dataset, stream):
-        # Extract archive to a temporary folder
-        tmp_folder = self._extract_archive(stream)
-        # Copy all files of the uncompressed archive to their final destination
-        tmp_files = [l for l in os.listdir(tmp_folder) if not (l.startswith(".") or l.startswith('__MACOSX'))]
-        if len(tmp_files) > 0:
-            first_path = os.path.join(tmp_folder, tmp_files[0])
-            if os.path.isdir(first_path):
-                shutil.move(os.path.join(tmp_folder, tmp_files[0]), dataset.files_path)
-            else:
-                shutil.move(tmp_folder, dataset.files_path)
-        else:
-            logger.error("No files found within the temp folder!!!!")
-        # list all files
-        for f in os.listdir(os.path.join(dataset.files_path)):
-            logger.debug("Filename: %s" % f)
-        # set the primary file
-        primary_filename = self.get_primary_filename(os.listdir(dataset.files_path))
-        if primary_filename is None:
-            raise Exception("Unable to find the investigation file!!!")
-        shutil.copy(os.path.join(dataset.files_path, primary_filename), dataset.file_name)
-        logger.info("Primary file '%s' saved!" % primary_filename)
-
     def _detect_file_type(self, stream):
         """
         Try to detect the type of the dataset archive.
