@@ -51,6 +51,7 @@ class Isa(data.Data):
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
     is_binary = True
+    subtype = None
 
     # metadata.MetadataElement(name="base_name", desc="base name isa tab dataset",
     #                          default='Text',
@@ -61,8 +62,18 @@ class Isa(data.Data):
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
     def get_investigation_filename(self, files_list):
-        """ Return the investigation filename """
-        raise NotImplementedError()
+        if self.subtype is None:
+            investigation_filename = self.find_isatab_investigation_filename(files_list)
+            if investigation_filename:
+                self.subtype = IsaTab
+            else:
+                investigation_filename = self.find_isajson_investigation_filename(files_list)
+                self.subtype = IsaJson
+            return investigation_filename
+        else:
+            return self.find_isatab_investigation_filename(files_list) \
+                if self.subtype == IsaTab else self.find_isajson_investigation_filename(files_list)
+
     @classmethod
     def find_isatab_investigation_filename(cls, files_list):
         """ Use the `investigation` file as primary file"""
