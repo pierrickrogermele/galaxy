@@ -33,34 +33,15 @@ _FILE_TYPE_PREFIX = {
 _MAX_LEN_FILE_TYPE_PREFIX = max(len(x) for x in _FILE_TYPE_PREFIX)
 _FILE_TYPE_REGEX = re.compile("(%s)" % "|".join(map(re.escape, _FILE_TYPE_PREFIX.keys())))
 
-
-class Logger(object):
-    """ A simple logger which directly outputs messages to the stdout/stderr streams """
-
-    def __init__(self):
-        super(Logger, self).__init__()
-        self._level = logging.INFO
-
-    def set_level(self, level):
-        self._level = level
-
-    def info(self, message):
-        print("INFO: %s" % message)
-
-    def warn(self, message):
-        print("WARN: %s" % message)
-
-    def debug(self, message):
-        if self._level == logging.DEBUG:
-            print("DEBUG: %s" % message)
-
-    def error(self, message):
-        print("ERROR: %s" % message, file=sys.stderr)
-
-
-# global logger
-logger = Logger()
-logger.set_level(logging.DEBUG)
+# configure logger
+logger = logging.getLogger(__name__)
+ch = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter("%(name)s %(levelname)s %(asctime)s %(message)s")
+ch.setFormatter(formatter)
+logger.handlers = []
+logger.propagate = False
+logger.addHandler(ch)
+logger.setLevel(logging.DEBUG)
 
 
 class Isa(data.Data):
@@ -170,6 +151,7 @@ class Isa(data.Data):
                 rval.append('<li><a href="%s" type="text/plain">%s</a>%s</li>' % (fn, fn, opt_text))
         rval.append('</ul></div></html>')
         return "\n".join(rval)
+            logger.debug("Dataset: %r", dataset)
 
     def dataset_content_needs_grooming(self, file_name):
         """This function is called on an output dataset file after the content is initially generated."""
@@ -182,19 +164,19 @@ class Isa(data.Data):
         # extract archive if the file corresponds tos the ISA archive
         if basename == ISA_ARCHIVE_NAME:
             # list files before
-            logger.debug("Files in %s before grooming..." % output_path)
+            logger.debug("Files in %s before grooming...", output_path)
             for f in os.listdir(output_path):
-                logger.debug("File: %s" % f)
-                logger.debug("Grooming dataset: %s" % file_name)
+                logger.debug("File: %s", f)
+                logger.debug("Grooming dataset: %s", file_name)
             # perform extraction
             with open(file_name, 'rb') as stream:
                 self._extract_archive(stream, output_path=output_path)
             # remove the original archive file
             os.remove(file_name)
             # list files after
-            logger.debug("Files in %s after grooming..." % output_path)
+            logger.debug("Files in %s after grooming...", output_path)
             for f in os.listdir(output_path):
-                logger.debug("File: %s" % f)
+                logger.debug("File: %s", f)
 
     def sniff(self, filename):
         """
@@ -204,7 +186,7 @@ class Isa(data.Data):
         :param filename: the name of the file containing the uploaded archive
         :return:
         """
-        logger.info("Checking if it is an ISA: %s" % filename)
+        logger.debug("Checking if it is an ISA: %s", filename)
         # get the list of files within the compressed archive
         with open(filename, 'rb') as stream:
             files_list = self._list_archive_files(stream)
@@ -212,7 +194,8 @@ class Isa(data.Data):
         return self.get_primary_filename(files_list) is not None
 
     def set_meta(self, dataset, **kwd):
-        logger.debug("Setting metadata of ISA type: %s" % dataset.file_name)
+        logger.info("Setting metadata of ISA type: %r", dataset)
+        logger.debug("ISA filename: %s", dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
 
 
@@ -228,8 +211,7 @@ class IsaTab(Isa):
         if len(res) > 0:
             if len(res) == 1:
                 return res[0]
-            logger.info("More than one file match the pattern '%s' "
-                        "to identify the investigation file" % investigation_file_pattern)
+            logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
         return None
 
     def validate(self, dataset):
@@ -248,5 +230,5 @@ class IsaJson(Isa):
         if len(res) > 0:
             if len(res) == 1:
                 return res[0]
-            logger.info("More than one JSON file match the pattern to identify the investigation file")
+            logger.error("More than one JSON file match the pattern to identify the investigation file")
         return None
