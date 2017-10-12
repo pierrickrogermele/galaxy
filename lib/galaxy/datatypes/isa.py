@@ -178,22 +178,23 @@ class Isa(data.Data):
             tar.extractall(path=target_path)
 
     def generate_primary_file(self, dataset=None):
-        logger.debug("Dataset type: %s, keys=%s, values=%s" % (type(dataset), dataset.keys(), dataset.values()))
-        rval = ['<html><head><title>ISA Dataset </title></head><p/>']
-        rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
-        for composite_name, composite_file in self.get_composite_files(dataset=dataset).items():
-            fn = composite_name
-            opt_text = ''
-            if composite_file.optional:
-                opt_text = ' (optional)'
-            if composite_file.get('description'):
-                rval.append('<li><a href="%s" type="text/plain">%s (%s)</a>%s</li>' % (
-                    fn, fn, composite_file.get('description'), opt_text))
-            else:
-                rval.append('<li><a href="%s" type="text/plain">%s</a>%s</li>' % (fn, fn, opt_text))
-        rval.append('</ul></div></html>')
-        return "\n".join(rval)
+        if dataset:
             logger.debug("Dataset: %r", dataset)
+            rval = ['<html><head><title>ISA Dataset </title></head><p/>']
+            rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
+            for composite_name, composite_file in self.get_composite_files(dataset=dataset).items():
+                fn = composite_name
+                opt_text = ''
+                if composite_file.optional:
+                    opt_text = ' (optional)'
+                if composite_file.get('description'):
+                    rval.append('<li><a href="%s" type="text/plain">%s (%s)</a>%s</li>' % (
+                        fn, fn, composite_file.get('description'), opt_text))
+                else:
+                    rval.append('<li><a href="%s" type="text/plain">%s</a>%s</li>' % (fn, fn, opt_text))
+            rval.append('</ul></div></html>')
+            return "\n".join(rval)
+        return "<div>No dataset available</div>"
 
     def dataset_content_needs_grooming(self, file_name):
         """This function is called on an output dataset file after the content is initially generated."""
