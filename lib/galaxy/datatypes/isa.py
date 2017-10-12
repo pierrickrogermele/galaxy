@@ -171,6 +171,31 @@ class Isa(data.Data):
         rval.append('</ul></div></html>')
         return "\n".join(rval)
 
+    def dataset_content_needs_grooming(self, file_name):
+        """This function is called on an output dataset file after the content is initially generated."""
+        return True
+
+    def groom_dataset_content(self, file_name):
+        # extract basename and folder of the current file whose content has to be groomed
+        basename = os.path.basename(file_name)
+        output_path = os.path.dirname(file_name)
+        # extract archive if the file corresponds tos the ISA archive
+        if basename == ISA_ARCHIVE_NAME:
+            # list files before
+            logger.debug("Files in %s before grooming..." % output_path)
+            for f in os.listdir(output_path):
+                logger.debug("File: %s" % f)
+                logger.debug("Grooming dataset: %s" % file_name)
+            # perform extraction
+            with open(file_name, 'rb') as stream:
+                self._extract_archive(stream, output_path=output_path)
+            # remove the original archive file
+            os.remove(file_name)
+            # list files after
+            logger.debug("Files in %s after grooming..." % output_path)
+            for f in os.listdir(output_path):
+                logger.debug("File: %s" % f)
+
     def sniff(self, filename):
         """
         Try to detect whether the actual archive contains an ISA archive
