@@ -302,21 +302,7 @@ class IsaTab(Isa):
     file_ext = "isa-tab"
 
     def get_investigation_filename(self, files_list):
-        """ Use the `investigation` file as primary file"""
-        # TODO: check pattern to identify the investigation file
-        res = []
-        for f in files_list:
-            logger.debug("Checking for matchings with file '%s'", f)
-            match = re.findall(r"^[i]_[\w]+\.txt", f, flags=re.IGNORECASE)
-            if match:
-                res.append(match[0])
-                logger.debug("A match found: %r", match)
-        logger.debug("List of matches: %r", res)
-        if len(res) > 0:
-            if len(res) == 1:
-                return res[0]
-            logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
-        return None
+        return self.find_isatab_investigation_filename(files_list)
 
     def validate(self, dataset):
         # TODO: implement a validator function
@@ -329,10 +315,4 @@ class IsaJson(Isa):
     file_ext = "isa-json"
 
     def get_investigation_filename(self, files_list):
-        """ Use the `investigation` file as primary file"""
-        res = [f for f in files_list if f.endswith(".json")]
-        if len(res) > 0:
-            if len(res) == 1:
-                return res[0]
-            logger.error("More than one JSON file match the pattern to identify the investigation file")
-        return None
+        return self.find_isajson_investigation_filename(files_list)
