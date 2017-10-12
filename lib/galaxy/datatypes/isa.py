@@ -15,8 +15,6 @@ import zipfile
 import logging
 import tarfile
 import tempfile
-import fnmatch
-
 from io import BytesIO
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
@@ -59,7 +57,7 @@ class Isa(data.Data):
         data.Data.__init__(self, **kwd)
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
-    def get_primary_filename(self, files_list):
+    def get_investigation_filename(self, files_list):
         """ Return the investigation filename """
         raise NotImplementedError()
 
@@ -191,7 +189,7 @@ class Isa(data.Data):
         with open(filename, 'rb') as stream:
             files_list = self._list_archive_files(stream)
         # return True if the primary_filename exists
-        return self.get_primary_filename(files_list) is not None
+        return self.get_investigation_filename(files_list) is not None
 
     def set_meta(self, dataset, **kwd):
         logger.info("Setting metadata of ISA type: %r", dataset)
@@ -203,11 +201,17 @@ class IsaTab(Isa):
     """ Class which implements the ISA-Tab datatype """
     file_ext = "isa-tab"
 
-    def get_primary_filename(self, files_list):
+    def get_investigation_filename(self, files_list):
         """ Use the `investigation` file as primary file"""
         # TODO: check pattern to identify the investigation file
-        investigation_file_pattern = re.compile(fnmatch.translate("i_*.txt"))
-        res = [l for l in files_list if investigation_file_pattern.match(l)]
+        res = []
+        for f in files_list:
+            logger.debug("Checking for matchings with file '%s'", f)
+            match = re.findall(r"[i]_[\w]+\.txt", f, flags=re.IGNORECASE)
+            if match:
+                res.append(match[0])
+                logger.debug("A match found: %r", match)
+        logger.debug("List of matches: %r", res)
         if len(res) > 0:
             if len(res) == 1:
                 return res[0]
@@ -224,7 +228,7 @@ class IsaJson(Isa):
     """ Class which implements the ISA-JSON datatype """
     file_ext = "isa-json"
 
-    def get_primary_filename(self, files_list):
+    def get_investigation_filename(self, files_list):
         """ Use the `investigation` file as primary file"""
         res = [f for f in files_list if f.endswith(".json")]
         if len(res) > 0:
