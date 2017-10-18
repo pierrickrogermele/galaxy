@@ -264,7 +264,7 @@ class Isa(data.Data):
     def generate_primary_file(self, dataset=None):
         logger.debug("Isa::generate_primary_file")
         if dataset:
-            dataset = dataset.datatype # TODO test first if dataset class is galaxy.util.bunch.Bunch
+            #dataset = dataset.datatype # TODO test first if dataset class is galaxy.util.bunch.Bunch
             logger.debug("Dataset: %r", dataset)
             logger.debug("Isa::generate_primary_file " + str(dataset))
             rval = ['<html><head><title>ISA Dataset </title></head><p/>']
