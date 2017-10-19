@@ -254,7 +254,6 @@ class Isa(data.Data):
         tmp_subfolders = [f for f in os.listdir(temp_folder) if
                           not f.startswith(".") and f not in (ISA_ARCHIVE_NAME, "__MACOSX")]
         logger.debug("Files within the temp folder: %r", tmp_subfolders)
-        
         # move files contained within the root dataset folder to their target path
         root_folder = os.path.join(temp_folder, tmp_subfolders[0])
         if len(tmp_subfolders) == 1 and os.path.isdir(root_folder):
@@ -263,7 +262,7 @@ class Isa(data.Data):
                 shutil.move(os.path.join(root_folder, f), target_path)
         elif len(tmp_subfolders) > 1:
             for f in tmp_subfolders:
-                shutil.move(os.path.join(temp_folder,f), target_path)
+                shutil.move(os.path.join(temp_folder, f), target_path)
         # clean temp data if required
         if delete_temp_folder:
             shutil.rmtree(temp_folder)
@@ -271,7 +270,6 @@ class Isa(data.Data):
     def generate_primary_file(self, dataset=None):
         logger.debug("Isa::generate_primary_file")
         if dataset:
-            #dataset = dataset.datatype # TODO test first if dataset class is galaxy.util.bunch.Bunch
             logger.debug("Dataset: %r", dataset)
             logger.debug("Isa::generate_primary_file " + str(dataset))
             rval = ['<html><head><title>ISA Dataset </title></head><p/>']
