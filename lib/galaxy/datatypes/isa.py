@@ -16,9 +16,10 @@ import zipfile
 import logging
 import tarfile
 import tempfile
+from json import dumps
 from io import BytesIO
 from cgi import escape
-from galaxy.util import unicodify
+from galaxy import util
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
 
@@ -223,7 +224,7 @@ class Isa(data.Data):
                 line = line.strip()
                 if not line:
                     continue
-                out.append('<tr><td>%s</td></tr>' % escape(unicodify(line, 'utf-8')))
+                out.append('<tr><td>%s</td></tr>' % escape(util.unicodify(line, 'utf-8')))
             out.append('</table>')
             out = "".join(out)
         except Exception as exc:
