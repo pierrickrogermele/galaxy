@@ -34,6 +34,9 @@ _FILE_TYPE_PREFIX = {
 _MAX_LEN_FILE_TYPE_PREFIX = max(len(x) for x in _FILE_TYPE_PREFIX)
 _FILE_TYPE_REGEX = re.compile("(%s)" % "|".join(map(re.escape, _FILE_TYPE_PREFIX.keys())))
 
+# max number of lines of the history peek
+_MAX_LINES_HISTORY_PEEK = 11
+
 # configure logger
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(sys.stdout)
@@ -180,7 +183,6 @@ class Isa(data.Data):
         """Set the peek and blurb text"""
         logger.debug("Isa::set_peek")
         logger.debug("Isa::set_peek Dataset %r", dataset)
-        data = None
         if not dataset or not dataset.dataset or not dataset.dataset.extra_files_path:
             raise RuntimeError("Unable to find the 'files-path'!")
         files_path = dataset.dataset.extra_files_path
@@ -192,13 +194,18 @@ class Isa(data.Data):
         if primary_file is None:
             raise RuntimeError("Unable to find the investigation file within the 'files_path' folder")
         with open(os.path.join(files_path, primary_file), "r") as f:
-            data = f.readlines()
-        if not dataset.dataset.purged and data:
-            dataset.peek = json.dumps({"data": data})
-            dataset.blurb = 'data'
-        else:
-            dataset.peek = 'file does not exist'
-            dataset.blurb = 'file purged from disk'
+            data = []
+            for line in f:
+                if len(data) < _MAX_LINES_HISTORY_PEEK:
+                    data.append(line)
+                else:
+                    break
+            if not dataset.dataset.purged and data:
+                dataset.peek = json.dumps({"data": data})
+                dataset.blurb = 'data'
+            else:
+                dataset.peek = 'file does not exist'
+                dataset.blurb = 'file purged from disk'
 
     def display_peek(self, dataset):
         logger.debug("Isa::display_peek")
