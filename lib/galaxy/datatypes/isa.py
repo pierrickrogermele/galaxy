@@ -338,6 +338,64 @@ class Isa(data.Data):
         logger.debug("ISA filename: %s", dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
 
+    def get_chunk(self, trans, dataset, offset=0, ck_size=None):
+        if dataset is None or dataset.dataset is None:
+            raise RuntimeError("dataset object not properly initialized!")
+        investigation_file = self.get_investigation_filename(os.listdir(dataset.dataset.extra_files_path))
+        if investigation_file is None:
+            raise RuntimeError("Unable to find the investigation file!")
+        logger.debug("The investigation file: %s" % investigation_file)
+        with open(os.path.join(dataset.dataset.extra_files_path, investigation_file)) as f:
+            f.seek(offset)
+            ck_data = f.read(ck_size or trans.app.config.display_chunk_size)
+            if ck_data and ck_data[-1] != '\n':
+                cursor = f.read(1)
+                while cursor and cursor != '\n':
+                    ck_data += cursor
+                    cursor = f.read(1)
+            last_read = f.tell()
+        return dumps({'ck_data': util.unicodify(ck_data),
+                      'offset': last_read})
+
+    def display_data(self, trans, dataset, preview=False, filename=None, to_ext=None, offset=None, ck_size=None, **kwd):
+        preview = util.string_as_bool(preview)
+        if offset is not None:
+            return self.get_chunk(trans, dataset, offset, ck_size)
+        elif to_ext or not preview:
+            to_ext = to_ext or dataset.extension
+            return self._serve_raw(trans, dataset, to_ext)
+        elif dataset.metadata.columns > 50:
+            # Fancy tabular display is only suitable for datasets without an incredibly large number of columns.
+            # We should add a new datatype 'matrix', with its own draw method, suitable for this kind of data.
+            # For now, default to the old behavior, ugly as it is.  Remove this after adding 'matrix'.
+            max_peek_size = 1000000  # 1 MB
+            if os.stat(dataset.file_name).st_size < max_peek_size:
+                self._clean_and_set_mime_type(trans, dataset.get_mime())
+                return open(dataset.file_name)
+            else:
+                trans.response.set_content_type("text/html")
+                return trans.stream_template_mako("/dataset/large_file.mako",
+                                                  truncated_data=open(dataset.file_name).read(max_peek_size),
+                                                  data=dataset)
+        else:
+            column_names = 'null'
+            if dataset.metadata.column_names:
+                column_names = dataset.metadata.column_names
+            elif hasattr(dataset.datatype, 'column_names'):
+                column_names = dataset.datatype.column_names
+            column_types = dataset.metadata.column_types
+            if not column_types:
+                column_types = []
+            column_number = dataset.metadata.columns
+            if column_number is None:
+                column_number = 'null'
+            return trans.fill_template("/dataset/isa_tab.mako",
+                                       dataset=dataset,
+                                       chunk=self.get_chunk(trans, dataset, 0),
+                                       column_number=column_number,
+                                       column_names=column_names,
+                                       column_types=column_types)
+
 
 class IsaTab(Isa):
     """ Class which implements the ISA-Tab datatype """
