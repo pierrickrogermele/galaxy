@@ -10,18 +10,23 @@ from __future__ import print_function
 import re
 import os
 import sys
+import glob
 import json
 import shutil
 import zipfile
 import logging
 import tarfile
 import tempfile
+import csv
+#from isatools import isatab ==> XXX ImportError: cannot import name zip_longest. Is isatools compatible with Python 2.7?
+#from isatools import isajson
 from json import dumps
 from io import BytesIO
 from cgi import escape
 from galaxy import util
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
+from galaxy.util.sanitize_html import sanitize_html
 
 # the name of file containing the isa archive
 ISA_ARCHIVE_NAME = "archive"
@@ -339,64 +344,60 @@ class Isa(data.Data):
         logger.debug("ISA filename: %s", dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
 
-    def get_chunk(self, trans, dataset, offset=0, ck_size=None):
-        if dataset is None or dataset.dataset is None:
-            raise RuntimeError("dataset object not properly initialized!")
-        investigation_file = self.get_investigation_filename(os.listdir(dataset.dataset.extra_files_path))
-        if investigation_file is None:
-            raise RuntimeError("Unable to find the investigation file!")
-        logger.debug("The investigation file: %s" % investigation_file)
-        with open(os.path.join(dataset.dataset.extra_files_path, investigation_file)) as f:
-            f.seek(offset)
-            ck_data = f.read(ck_size or trans.app.config.display_chunk_size)
-            if ck_data and ck_data[-1] != '\n':
-                cursor = f.read(1)
-                while cursor and cursor != '\n':
-                    ck_data += cursor
-                    cursor = f.read(1)
-            last_read = f.tell()
-        return dumps({'ck_data': util.unicodify(ck_data),
-                      'offset': last_read})
-
     def display_data(self, trans, dataset, preview=False, filename=None, to_ext=None, offset=None, ck_size=None, **kwd):
-        preview = util.string_as_bool(preview)
-        if offset is not None:
-            return self.get_chunk(trans, dataset, offset, ck_size)
-        elif to_ext or not preview:
-            to_ext = to_ext or dataset.extension
-            return self._serve_raw(trans, dataset, to_ext)
-        elif dataset.metadata.columns > 50:
-            # Fancy tabular display is only suitable for datasets without an incredibly large number of columns.
-            # We should add a new datatype 'matrix', with its own draw method, suitable for this kind of data.
-            # For now, default to the old behavior, ugly as it is.  Remove this after adding 'matrix'.
-            max_peek_size = 1000000  # 1 MB
-            if os.stat(dataset.file_name).st_size < max_peek_size:
-                self._clean_and_set_mime_type(trans, dataset.get_mime())
-                return open(dataset.file_name)
-            else:
-                trans.response.set_content_type("text/html")
-                return trans.stream_template_mako("/dataset/large_file.mako",
-                                                  truncated_data=open(dataset.file_name).read(max_peek_size),
-                                                  data=dataset)
-        else:
-            column_names = 'null'
-            if dataset.metadata.column_names:
-                column_names = dataset.metadata.column_names
-            elif hasattr(dataset.datatype, 'column_names'):
-                column_names = dataset.datatype.column_names
-            column_types = dataset.metadata.column_types
-            if not column_types:
-                column_types = []
-            column_number = dataset.metadata.columns
-            if column_number is None:
-                column_number = 'null'
-            return trans.fill_template("/dataset/isa_tab.mako",
-                                       dataset=dataset,
-                                       chunk=self.get_chunk(trans, dataset, 0),
-                                       column_number=column_number,
-                                       column_names=column_names,
-                                       column_types=column_types)
-
+        
+        logger.debug('Isa::display_data 01')
+        html = None
+        if dataset is not None:
+            if dataset.dataset is not None:
+                
+                # Open ISA folder
+                isa_folder = dataset.dataset.extra_files_path
+                logger.debug('Isa::display_data 02 %r', isa_folder)
+                if os.path.exists(isa_folder):
+                    # Is it a JSON or a Tab? XXX It would be nice to have such code integrated into isatools
+                    investigation_files = glob.glob(os.path.join(isa_folder, 'i_*.txt'))
+                    logger.debug('Isa::display_data 03 %r', investigation_files)
+                    study = None
+                    if len(investigation_files) >= 1:
+                        logger.debug('Isa::display_data 04')
+                        
+                        # Read investigation file "by hand". TODO Use isatools for that
+                        with open(investigation_files[0], 'rb') as csvfile:
+                            investigation_reader = csv.reader(csvfile, delimiter = "\t")
+                            html = '<html><body>'
+                            current_section = None
+                            for row in investigation_reader:
+                                if len(row) == 1:
+                                    current_section = row[0]
+                                elif current_section == 'STUDY':
+                                    if row[0] == 'Study Identifier':
+                                        html += '<h1>%s</h1>' % row[1]
+                                    if row[0] == 'Study Title':
+                                        html += '<h2>%s</h2>' % row[1]
+                                    if row[0] == 'Study Description':
+                                        html += '<p>%s</p>' % row[1]
+                                    if row[0] == 'Study Submission Date':
+                                        html += '<p>Submitted the %s</p>' % row[1]
+                                    if row[0] == 'Study Public Release Date':
+                                        html += '<p>Released on %s</p>' % row[1]
+                                        
+                                logger.debug(', '.join(row))
+                            html += '</body></html>'
+                      #  study = isatab.load(investigation_files[0])
+#                    else:
+#                        json_files = glob.glob(os.path.join(isa_folder,, '*.json'))
+#                        if len(json_files) >= 1:
+#                            study = isajson.load(json_files[0])
+#                    if study is not None:
+#                        html = '<html><header><title>{0}</title></header><body><h1>{0}</h1></body></html>'.format(study.title)
+#                    logger.debug('Isa::display_data 04 HTML: %r', html)
+        if html is None:
+            html = '<html><header><title>Error while reading ISA archive.</title></header><body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
+        logger.debug(html)
+        mime = 'text/html'
+        self._clean_and_set_mime_type(trans, mime)
+        return sanitize_html(html).encode('utf-8')
 
 class IsaTab(Isa):
     """ Class which implements the ISA-Tab datatype """
