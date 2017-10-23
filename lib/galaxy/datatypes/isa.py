@@ -344,54 +344,85 @@ class Isa(data.Data):
         logger.debug("ISA filename: %s", dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
 
+    def get_isajson_json_file(self, dataset):
+        
+        file = None
+        
+        if dataset.dataset is not None:
+            # Open ISA folder
+            isa_folder = dataset.dataset.extra_files_path
+            if os.path.exists(isa_folder):
+                json_files = glob.glob(os.path.join(isa_folder, '*.json'))
+                if len(json_files) >= 1:
+                    file = json_files[0]
+
+        return file
+
+    def get_isatab_investigation_file(self, dataset):
+        
+        file = None
+        
+        if dataset.dataset is not None:
+            # Open ISA folder
+            isa_folder = dataset.dataset.extra_files_path
+            if os.path.exists(isa_folder):
+                investigation_files = glob.glob(os.path.join(isa_folder, 'i_*.txt'))
+                if len(investigation_files) >= 1:
+                    file = investigation_files[0]
+
+        return file
+        
+    def is_isatab(self, dataset):
+        return self.get_isatab_investigation_file(dataset) is not None
+        
+    def is_isajson(self, dataset):
+        return self.get_isajson_json_file(dataset) is not None
+        
+    def make_info_page_from_isatab(self, dataset):
+        
+        html = None
+        
+        # Read investigation file "by hand". TODO Use isatools for that
+        with open(self.get_isatab_investigation_file(dataset), 'rb') as csvfile:
+            investigation_reader = csv.reader(csvfile, delimiter = "\t")
+            html = '<html><body>'
+            current_section = None
+            for row in investigation_reader:
+                if len(row) == 1:
+                    current_section = row[0]
+                elif current_section == 'STUDY':
+                    if row[0] == 'Study Identifier':
+                        html += '<h1>%s</h1>' % row[1]
+                    if row[0] == 'Study Title':
+                        html += '<h2>%s</h2>' % row[1]
+                    if row[0] == 'Study Description':
+                        html += '<p>%s</p>' % row[1]
+                    if row[0] == 'Study Submission Date':
+                        html += '<p>Submitted the %s</p>' % row[1]
+                    if row[0] == 'Study Public Release Date':
+                        html += '<p>Released on %s</p>' % row[1]
+                        
+                logger.debug(', '.join(row))
+            html += '</body></html>'
+            
+        return html
+        
+    def make_info_page_from_isajson(self, dataset):
+        
+        html = None
+            
+        return html
+        
     def display_data(self, trans, dataset, preview=False, filename=None, to_ext=None, offset=None, ck_size=None, **kwd):
         
         logger.debug('Isa::display_data 01')
         html = None
         if dataset is not None:
-            if dataset.dataset is not None:
+            if self.is_isatab(dataset):
+                html = self.make_info_page_from_isatab(dataset)
+            elif self.is_isajson(dataset):
+                html = self.make_info_page_from_isajson(dataset)
                 
-                # Open ISA folder
-                isa_folder = dataset.dataset.extra_files_path
-                logger.debug('Isa::display_data 02 %r', isa_folder)
-                if os.path.exists(isa_folder):
-                    # Is it a JSON or a Tab? XXX It would be nice to have such code integrated into isatools
-                    investigation_files = glob.glob(os.path.join(isa_folder, 'i_*.txt'))
-                    logger.debug('Isa::display_data 03 %r', investigation_files)
-                    study = None
-                    if len(investigation_files) >= 1:
-                        logger.debug('Isa::display_data 04')
-                        
-                        # Read investigation file "by hand". TODO Use isatools for that
-                        with open(investigation_files[0], 'rb') as csvfile:
-                            investigation_reader = csv.reader(csvfile, delimiter = "\t")
-                            html = '<html><body>'
-                            current_section = None
-                            for row in investigation_reader:
-                                if len(row) == 1:
-                                    current_section = row[0]
-                                elif current_section == 'STUDY':
-                                    if row[0] == 'Study Identifier':
-                                        html += '<h1>%s</h1>' % row[1]
-                                    if row[0] == 'Study Title':
-                                        html += '<h2>%s</h2>' % row[1]
-                                    if row[0] == 'Study Description':
-                                        html += '<p>%s</p>' % row[1]
-                                    if row[0] == 'Study Submission Date':
-                                        html += '<p>Submitted the %s</p>' % row[1]
-                                    if row[0] == 'Study Public Release Date':
-                                        html += '<p>Released on %s</p>' % row[1]
-                                        
-                                logger.debug(', '.join(row))
-                            html += '</body></html>'
-                      #  study = isatab.load(investigation_files[0])
-#                    else:
-#                        json_files = glob.glob(os.path.join(isa_folder,, '*.json'))
-#                        if len(json_files) >= 1:
-#                            study = isajson.load(json_files[0])
-#                    if study is not None:
-#                        html = '<html><header><title>{0}</title></header><body><h1>{0}</h1></body></html>'.format(study.title)
-#                    logger.debug('Isa::display_data 04 HTML: %r', html)
         if html is None:
             html = '<html><header><title>Error while reading ISA archive.</title></header><body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
         logger.debug(html)
