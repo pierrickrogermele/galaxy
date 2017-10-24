@@ -53,42 +53,94 @@ logger.propagate = False
 logger.addHandler(ch)
 logger.setLevel(logging.DEBUG)
 
-
 class Isa(data.Data):
+    
+    class InvestigationTab(object):
+        investigation_file = None
+        
+        def __init__(self, investigation_file):
+            self.investigation_file = investigation_file
+        
+    class InvestigationJson(object):
+        json_file = None
+        
+        def __init__(self, json_file):
+            self.json_file = json_file
+        
     """ Base class for implementing ISA datatypes """
     file_ext = "isa"
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
     is_binary = True
-    subtype = None
+    investigation = None
+    main_file = None
 
     # metadata.MetadataElement(name="base_name", desc="base name isa tab dataset",
     #                          default='Text',
     #                          readonly=True, set_in_upload=True)
 
     def __init__(self, **kwd):
-        logger.debug("Isa::__init__")
         data.Data.__init__(self, **kwd)
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
-    def get_investigation_filename(self, files_list):
-        logger.debug("Isa::get_investigation_filename")
-        if self.subtype is None:
-            investigation_filename = self.find_isatab_investigation_filename(files_list)
-            if investigation_filename:
-                self.subtype = IsaTab
+    def _init_investigation(self, dataset):
+        """Create a contained instance specific to the exact ISA type (Tab or Json)."""
+        
+        if self.investigation is None:
+            
+            # Detect type
+            if dataset and dataset.dataset and dataset.dataset.extra_files_path and os.path.exists(dataset.dataset.extra_files_path):
+                
+                # Get ISA archive older
+                isa_folder = dataset.dataset.extra_files_path
+                
+                # Test if it is an ISA-Tab
+                investigation_file = self._find_isatab_investigation_filename(os.listdir(isa_folder))
+                if investigation_file is not None:
+                    self.main_file = investigation_file
+                    self.investigation = InvestigationTab(investigation_file)
+                
+                # Test if it is an ISA-Json
+                if self.investigation is None:
+                    json_file = self._find_isajson_json_filename(os.listdir(isa_folder))
+                    if json_file is not None:
+                        self.main_file = json_file
+                        self.investigation = InvestigationJson(json_file)
+                    
+                # Unable to determine ISA archive type
+                if self.investigation is None:
+                    logger.warning('Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json.')
             else:
-                investigation_filename = self.find_isajson_investigation_filename(files_list)
-                self.subtype = IsaJson
+                logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
+        
+    def get_main_file(self, dataset):
+        """Get main file of ISA archive. Either the i_investigation.txt file for an ISA-Tab or the JSON file for an ISA-Json."""
+        
+        # Initialize investigation
+        self._init_investigation(dataset)
+        
+        file = None
+        
+        # Search for main file
+            
+            
+        return file
+        
+    def get_investigation_filename(self, files_list):
+        if self.investigation is None:
+            investigation_filename = self._find_isatab_investigation_filename(files_list)
+            if investigation_filename:
+                self.investigation = IsaTab
+            else:
+                investigation_filename = self._find_isajson_json_filename(files_list)
+                self.investigation = IsaJson
             return investigation_filename
         else:
-            return self.find_isatab_investigation_filename(files_list) \
-                if self.subtype == IsaTab else self.find_isajson_investigation_filename(files_list)
+            return self._find_isatab_investigation_filename(files_list) \
+                if self.investigation == IsaTab else self._find_isajson_json_filename(files_list)
 
-    @classmethod
-    def find_isatab_investigation_filename(cls, files_list):
-        """ Use the `investigation` file as primary file"""
-        logger.debug("Isa::find_isatab_investigation_filename")
+    def _find_isatab_investigation_filename(self, files_list):
+        """Find the investigation file of an ISA-Tab."""
         logger.debug("Finding investigation filename assuming an ISA-Tab dataset...")
         res = []
         for f in files_list:
@@ -106,10 +158,8 @@ class Isa(data.Data):
             logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
         return None
 
-    @classmethod
-    def find_isajson_investigation_filename(cls, files_list):
-        """ Use the `investigation` file as primary file"""
-        logger.debug("Isa::find_isajson_investigation_filename")
+    def _find_isajson_json_filename(self, files_list):
+        """Find the JSON file of an ISA-Json."""
         logger.debug("Finding investigation filename assuming an ISA-JSON dataset...")
         res = [f for f in files_list if f.endswith(".json")]
         logger.debug("List of matches: %r", res)
@@ -122,7 +172,6 @@ class Isa(data.Data):
         return None
 
     def _extract_archive(self, stream, output_path=None):
-        logger.debug("Isa::_extract_archive")
         # extract the archive to a temp folder
         if output_path is None:
             output_path = tempfile.mkdtemp()
@@ -187,19 +236,14 @@ class Isa(data.Data):
 
     def set_peek(self, dataset, is_multi_byte=False):
         """Set the peek and blurb text"""
-        logger.debug("Isa::set_peek")
-        logger.debug("Isa::set_peek Dataset %r", dataset)
-        if not dataset or not dataset.dataset or not dataset.dataset.extra_files_path:
-            raise RuntimeError("Unable to find the 'files-path'!")
-        files_path = dataset.dataset.extra_files_path
-        logger.debug("Isa::set_peek FILES_PATH " + files_path)
-        files = os.listdir(files_path)
-        logger.debug("Isa::set_peek FILES " + str(files))
-        primary_file = self.get_investigation_filename(files)
-        logger.debug("Isa::set_peek PRIMARY_FILE " + primary_file)
-        if primary_file is None:
-            raise RuntimeError("Unable to find the investigation file within the 'files_path' folder")
-        with open(os.path.join(files_path, primary_file), "r") as f:
+        
+        self._init_investigation(dataset)
+        
+        if self.main_file is None:
+            raise RuntimeError("Unable to find the main file within the 'files_path' folder")
+        
+        # Read first lines of main file
+        with open(main_file, "r") as f:
             data = []
             for line in f:
                 if len(data) < _MAX_LINES_HISTORY_PEEK:
@@ -214,11 +258,6 @@ class Isa(data.Data):
                 dataset.blurb = 'file purged from disk'
 
     def display_peek(self, dataset):
-        logger.debug("Isa::display_peek")
-        logger.debug("Dataset: %r" % dataset)
-        logger.debug("Files path: %s" % dataset.dataset.extra_files_path)
-        logger.debug("Displaying PEEK")
-        # raise Exception("Display PEKEK")
         """Create HTML table, used for displaying peek"""
         out = ['<table cellspacing="0" cellpadding="3">']
         try:
@@ -297,11 +336,9 @@ class Isa(data.Data):
 
     def dataset_content_needs_grooming(self, file_name):
         """This function is called on an output dataset file after the content is initially generated."""
-        logger.debug("Isa::dataset_content_needs_grooming")
         return True
 
     def groom_dataset_content(self, file_name):
-        logger.debug("Isa::groom_dataset_content")
         # extract basename and folder of the current file whose content has to be groomed
         basename = os.path.basename(file_name)
         output_path = os.path.dirname(file_name)
@@ -323,23 +360,18 @@ class Isa(data.Data):
                 logger.debug("File: %s", f)
 
     def sniff(self, filename):
-        """
-        Try to detect whether the actual archive contains an ISA archive
-        simply searching for the existence of an investigation file.
-
-        :param filename: the name of the file containing the uploaded archive
-        :return:
-        """
-        logger.debug("Isa::sniff")
-        logger.debug("Checking if it is an ISA: %s", filename)
-        # get the list of files within the compressed archive
+        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence of an investigation file."""
+        logger.debug("Checking if %s is an ISA.", filename)
+        
+        # Get the list of files within the compressed archive
         with open(filename, 'rb') as stream:
             files_list = self._list_archive_files(stream)
-        # return True if the primary_filename exists
-        return self.get_investigation_filename(files_list) is not None
+            if self._find_isatab_investigation_filename(files_list) is not None or self._find_isajson_json_filename(files_list) is not None:
+                return True
+
+        return False
 
     def set_meta(self, dataset, **kwd):
-        logger.debug("Isa::set_meta")
         logger.info("Setting metadata of ISA type: %r", dataset)
         logger.debug("ISA filename: %s", dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
@@ -454,7 +486,7 @@ class IsaTab(Isa):
 
     def get_investigation_filename(self, files_list):
         logger.debug("IsaTab::get_investigation_filename")
-        return self.find_isatab_investigation_filename(files_list)
+        return self._find_isatab_investigation_filename(files_list)
 
     def validate(self, dataset):
         logger.debug("IsaTab::validate")
@@ -469,4 +501,4 @@ class IsaJson(Isa):
 
     def get_investigation_filename(self, files_list):
         logger.debug("IsaJson::get_investigation_filename")
-        return self.find_isajson_investigation_filename(files_list)
+        return self._find_isajson_json_filename(files_list)
