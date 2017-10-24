@@ -402,7 +402,6 @@ class Isa(data.Data):
                     if row[0] == 'Study Public Release Date':
                         html += '<p>Released on %s</p>' % row[1]
                         
-                logger.debug(', '.join(row))
             html += '</body></html>'
             
         return html
@@ -410,6 +409,25 @@ class Isa(data.Data):
     def make_info_page_from_isajson(self, dataset):
         
         html = None
+        
+        filename = self.get_isajson_json_file(dataset) 
+        logger.debug("Isa::make_info_page_from_isajson Filename: %r", filename)
+        fp = open(filename)
+        logger.debug("Isa::make_info_page_from_isajson fp: %r", fp)
+        json_isa = json.load(fp)
+        html = '<html><body>'
+        study = json_isa['studies'][0]
+        if 'identifier' in study:
+            html += '<h1>%s</h1>' % study['identifier']
+        if 'title' in study:
+            html += '<h2>%s</h2>' % study['title']
+        if 'description' in study:
+            html += '<p>%s</p>' % study['description']
+        if 'submissionDate' in study:
+            html += '<p>Submitted the %s</p>' % study['submissionDate']
+        if 'publicReleaseDate' in study:
+            html += '<p>Released on %s</p>' % study['publicReleaseDate']
+        html += '</body></html>'
             
         return html
         
