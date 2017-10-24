@@ -31,7 +31,7 @@ from galaxy.util.sanitize_html import sanitize_html
 # the name of file containing the isa archive
 ISA_ARCHIVE_NAME = "archive"
 
-# archives types
+# Archives types
 _FILE_TYPE_PREFIX = {
     "\x1f\x8b\x08": "gz",
     "\x42\x5a\x68": "bz2",
@@ -40,10 +40,10 @@ _FILE_TYPE_PREFIX = {
 _MAX_LEN_FILE_TYPE_PREFIX = max(len(x) for x in _FILE_TYPE_PREFIX)
 _FILE_TYPE_REGEX = re.compile("(%s)" % "|".join(map(re.escape, _FILE_TYPE_PREFIX.keys())))
 
-# max number of lines of the history peek
+# Set max number of lines of the history peek
 _MAX_LINES_HISTORY_PEEK = 11
 
-# configure logger
+# Configure logger
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("%(name)s %(levelname)s %(asctime)s %(message)s")
@@ -55,25 +55,98 @@ logger.setLevel(logging.DEBUG)
 
 class Isa(data.Data):
     
-    class InvestigationTab(object):
-        investigation_file = None
+    class Investigation(object):
+        filename = None
+        identifier = ''
+        title = ''
+        studies = []
         
-        def __init__(self, investigation_file):
-            self.investigation_file = investigation_file
+        def __init__(self, filename):
+            self.filename = filename
+            self.parse()
         
-    class InvestigationJson(object):
-        json_file = None
+    class Study(object):
+        identifier = ''
+        title = ''
+        description = ''
+        submission_date = ''
+        public_release_date = ''
         
-        def __init__(self, json_file):
-            self.json_file = json_file
+    class InvestigationTab(Investigation):
+        
+        def __init__(self, filename):
+	    super(self.__class__, self).__init__(filename)
+        
+        def parse(self):
+            self.identifier = ''
+            self.title = ''
+            self.studies = []
+            with open(self.filename, 'rb') as csvfile:
+                investigation_reader = csv.reader(csvfile, delimiter = "\t")
+                current_section = None
+                study = None
+                for row in investigation_reader:
+                    if len(row) == 1:
+                        current_section = row[0]
+                    elif current_section == 'INVESTIGATION':
+                        if row[0] == 'Investigation Identifier':
+                            self.identifier = row[1]
+                        if row[0] == 'Investigation Title':
+                            self.title = row[1]
+                    elif current_section == 'STUDY':
+                        if study is None:
+                            study = Isa.Study()
+                        if row[0] == 'Study Identifier':
+                            study.identifier = row[1]
+                        if row[0] == 'Study Title':
+                            study.title = row[1]
+                        if row[0] == 'Study Description':
+                            study.description = row[1]
+                        if row[0] == 'Study Submission Date':
+                            study.submission_date = row[1]
+                        if row[0] == 'Study Public Release Date':
+                            study.public_release_date = row[1]
+                if study is not None:
+                    self.studies.append(study)
+        
+    class InvestigationJson(Investigation):
+        
+        def __init__(self, filename):
+	    super(self.__class__, self).__init__(filename)
+        
+        def parse(self):
+            self.identifier = ''
+            self.title = ''
+            self.studies = []
+            fp = open(self.filename)
+            json_isa = json.load(fp)
+            self.identifier = json_isa['identifier']
+            self.title = json_isa['title']
+            for study in json_isa['studies']:
+                s = Isa.Study()
+                if 'identifier' in study:
+                    s.identifier = study['identifier']
+                if 'title' in study:
+                    s.title = study['title']
+                if 'description' in study:
+                    s.description = study['description']
+                if 'submissionDate' in study:
+                    s.submission_date = study['submissionDate']
+                if 'publicReleaseDate' in study:
+                    s.public_release_date = study['publicReleaseDate']
+                self.studies.append(s)
+
+    @classmethod
+    def _make_investigation(cls, filename):
+        if filename[-5:].lower() == '.json':
+            return Isa.InvestigationJson(filename)
+        return Isa.InvestigationTab(filename)
         
     """ Base class for implementing ISA datatypes """
     file_ext = "isa"
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
     is_binary = True
-    investigation = None
-    main_file = None
 
     # metadata.MetadataElement(name="base_name", desc="base name isa tab dataset",
     #                          default='Text',
@@ -82,51 +155,50 @@ class Isa(data.Data):
     def __init__(self, **kwd):
         data.Data.__init__(self, **kwd)
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
-
-    def _init_investigation(self, dataset):
+        
+    @classmethod
+    def _get_main_file(cls, dataset):
+        
+        main_file = None
+        
+        # Detect type
+        if dataset and dataset.dataset and dataset.dataset.extra_files_path and os.path.exists(dataset.dataset.extra_files_path):
+            
+            # Get ISA archive older
+            isa_folder = dataset.dataset.extra_files_path
+            isa_files = os.listdir(isa_folder)
+            
+            # Try to find an ISA-Tab investigation file
+            main_file = cls._find_isatab_investigation_filename(isa_files)
+            
+            # Try to find an ISA-Json JSON file
+            if main_file is None:
+                main_file = cls._find_isajson_json_filename(isa_files)
+                
+            # Make full path
+            if main_file is not None:
+                main_file = os.path.join(isa_folder, main_file)
+                
+            if main_file is None:
+                logger.warning('Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
+        else:
+            logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
+            
+        return main_file
+    
+    @classmethod
+    def _get_investigation(cls, dataset):
         """Create a contained instance specific to the exact ISA type (Tab or Json)."""
         
-        if self.investigation is None:
-            
-            # Detect type
-            if dataset and dataset.dataset and dataset.dataset.extra_files_path and os.path.exists(dataset.dataset.extra_files_path):
-                
-                # Get ISA archive older
-                isa_folder = dataset.dataset.extra_files_path
-                
-                # Test if it is an ISA-Tab
-                investigation_file = self._find_isatab_investigation_filename(os.listdir(isa_folder))
-                if investigation_file is not None:
-                    self.main_file = investigation_file
-                    self.investigation = InvestigationTab(investigation_file)
-                
-                # Test if it is an ISA-Json
-                if self.investigation is None:
-                    json_file = self._find_isajson_json_filename(os.listdir(isa_folder))
-                    if json_file is not None:
-                        self.main_file = json_file
-                        self.investigation = InvestigationJson(json_file)
-                    
-                # Unable to determine ISA archive type
-                if self.investigation is None:
-                    logger.warning('Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json.')
-            else:
-                logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
-        
-    def get_main_file(self, dataset):
-        """Get main file of ISA archive. Either the i_investigation.txt file for an ISA-Tab or the JSON file for an ISA-Json."""
-        
-        # Initialize investigation
-        self._init_investigation(dataset)
-        
-        file = None
-        
-        # Search for main file
-            
-            
-        return file
+        investigation = None
+        main_file = cls._get_main_file(dataset)
+        if main_file is not None:
+            investigation = Isa._make_investigation(main_file)
 
-    def _find_isatab_investigation_filename(self, files_list):
+        return investigation
+
+    @classmethod
+    def _find_isatab_investigation_filename(cls, files_list):
         """Find the investigation file of an ISA-Tab."""
         logger.debug("Finding investigation filename assuming an ISA-Tab dataset...")
         res = []
@@ -145,7 +217,8 @@ class Isa(data.Data):
             logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
         return None
 
-    def _find_isajson_json_filename(self, files_list):
+    @classmethod
+    def _find_isajson_json_filename(cls, files_list):
         """Find the JSON file of an ISA-Json."""
         logger.debug("Finding investigation filename assuming an ISA-JSON dataset...")
         res = [f for f in files_list if f.endswith(".json")]
@@ -224,9 +297,9 @@ class Isa(data.Data):
     def set_peek(self, dataset, is_multi_byte=False):
         """Set the peek and blurb text"""
         
-        self._init_investigation(dataset)
+        main_file = self._get_main_file(dataset)
         
-        if self.main_file is None:
+        if main_file is None:
             raise RuntimeError("Unable to find the main file within the 'files_path' folder")
         
         # Read first lines of main file
@@ -359,110 +432,30 @@ class Isa(data.Data):
         return False
 
     def set_meta(self, dataset, **kwd):
-        logger.info("Setting metadata of ISA type: %r", dataset)
-        logger.debug("ISA filename: %s", dataset.file_name)
         super(Isa, self).set_meta(dataset, **kwd)
-
-    def get_isajson_json_file(self, dataset):
-        
-        file = None
-        
-        if dataset.dataset is not None:
-            # Open ISA folder
-            isa_folder = dataset.dataset.extra_files_path
-            if os.path.exists(isa_folder):
-                json_files = glob.glob(os.path.join(isa_folder, '*.json'))
-                if len(json_files) >= 1:
-                    file = json_files[0]
-
-        return file
-
-    def get_isatab_investigation_file(self, dataset):
-        
-        file = None
-        
-        if dataset.dataset is not None:
-            # Open ISA folder
-            isa_folder = dataset.dataset.extra_files_path
-            if os.path.exists(isa_folder):
-                investigation_files = glob.glob(os.path.join(isa_folder, 'i_*.txt'))
-                if len(investigation_files) >= 1:
-                    file = investigation_files[0]
-
-        return file
-        
-    def is_isatab(self, dataset):
-        return self.get_isatab_investigation_file(dataset) is not None
-        
-    def is_isajson(self, dataset):
-        return self.get_isajson_json_file(dataset) is not None
-        
-    def make_info_page_from_isatab(self, dataset):
-        
-        html = None
-        
-        # Read investigation file "by hand". TODO Use isatools for that
-        with open(self.get_isatab_investigation_file(dataset), 'rb') as csvfile:
-            investigation_reader = csv.reader(csvfile, delimiter = "\t")
-            html = '<html><body>'
-            current_section = None
-            for row in investigation_reader:
-                if len(row) == 1:
-                    current_section = row[0]
-                elif current_section == 'STUDY':
-                    if row[0] == 'Study Identifier':
-                        html += '<h1>%s</h1>' % row[1]
-                    if row[0] == 'Study Title':
-                        html += '<h2>%s</h2>' % row[1]
-                    if row[0] == 'Study Description':
-                        html += '<p>%s</p>' % row[1]
-                    if row[0] == 'Study Submission Date':
-                        html += '<p>Submitted the %s</p>' % row[1]
-                    if row[0] == 'Study Public Release Date':
-                        html += '<p>Released on %s</p>' % row[1]
-                        
-            html += '</body></html>'
-            
-        return html
-        
-    def make_info_page_from_isajson(self, dataset):
-        
-        html = None
-        
-        filename = self.get_isajson_json_file(dataset) 
-        logger.debug("Isa::make_info_page_from_isajson Filename: %r", filename)
-        fp = open(filename)
-        logger.debug("Isa::make_info_page_from_isajson fp: %r", fp)
-        json_isa = json.load(fp)
-        html = '<html><body>'
-        study = json_isa['studies'][0]
-        if 'identifier' in study:
-            html += '<h1>%s</h1>' % study['identifier']
-        if 'title' in study:
-            html += '<h2>%s</h2>' % study['title']
-        if 'description' in study:
-            html += '<p>%s</p>' % study['description']
-        if 'submissionDate' in study:
-            html += '<p>Submitted the %s</p>' % study['submissionDate']
-        if 'publicReleaseDate' in study:
-            html += '<p>Released on %s</p>' % study['publicReleaseDate']
-        html += '</body></html>'
-            
-        return html
         
     def display_data(self, trans, dataset, preview=False, filename=None, to_ext=None, offset=None, ck_size=None, **kwd):
         
-        logger.debug('Isa::display_data 01')
-        html = None
-        if dataset is not None:
-            if self.is_isatab(dataset):
-                html = self.make_info_page_from_isatab(dataset)
-            elif self.is_isajson(dataset):
-                html = self.make_info_page_from_isajson(dataset)
-                
-        if html is None:
+        investigation = self._get_investigation(dataset)
+        
+        logger.debug('Isa::display_data Investigation %r', investigation)
+        if investigation is None:
             html = '<html><header><title>Error while reading ISA archive.</title></header><body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
-        logger.debug(html)
+        else:
+            html = '<html><body>'
+            html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
+            logger.debug('Isa::display_data Investigation title %r', investigation.title)
+            logger.debug('Isa::display_data %s studies', len(investigation.studies))
+            for study in investigation.studies:
+                html += '<h2>Study %s</h2>' % study.identifier
+                html += '<h3>%s</h3>' % study.title
+                html += '<p>%s</p>' % study.description
+                html += '<p>Submitted the %s</p>' % study.submission_date
+                html += '<p>Released on %s</p>' % study.public_release_date
+            html += '</body></html>'
+                
+        # Set mime type
         mime = 'text/html'
         self._clean_and_set_mime_type(trans, mime)
+        
         return sanitize_html(html).encode('utf-8')
