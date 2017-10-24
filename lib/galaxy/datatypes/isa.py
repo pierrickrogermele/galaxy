@@ -125,19 +125,6 @@ class Isa(data.Data):
             
             
         return file
-        
-    def get_investigation_filename(self, files_list):
-        if self.investigation is None:
-            investigation_filename = self._find_isatab_investigation_filename(files_list)
-            if investigation_filename:
-                self.investigation = IsaTab
-            else:
-                investigation_filename = self._find_isajson_json_filename(files_list)
-                self.investigation = IsaJson
-            return investigation_filename
-        else:
-            return self._find_isatab_investigation_filename(files_list) \
-                if self.investigation == IsaTab else self._find_isajson_json_filename(files_list)
 
     def _find_isatab_investigation_filename(self, files_list):
         """Find the investigation file of an ISA-Tab."""
@@ -479,26 +466,3 @@ class Isa(data.Data):
         mime = 'text/html'
         self._clean_and_set_mime_type(trans, mime)
         return sanitize_html(html).encode('utf-8')
-
-class IsaTab(Isa):
-    """ Class which implements the ISA-Tab datatype """
-    file_ext = "isa-tab"
-
-    def get_investigation_filename(self, files_list):
-        logger.debug("IsaTab::get_investigation_filename")
-        return self._find_isatab_investigation_filename(files_list)
-
-    def validate(self, dataset):
-        logger.debug("IsaTab::validate")
-        # TODO: implement a validator function
-        logger.debug("Validating dataset....")
-        return super(Isa, self).validate(dataset)
-
-
-class IsaJson(Isa):
-    """ Class which implements the ISA-JSON datatype """
-    file_ext = "isa-json"
-
-    def get_investigation_filename(self, files_list):
-        logger.debug("IsaJson::get_investigation_filename")
-        return self._find_isajson_json_filename(files_list)
