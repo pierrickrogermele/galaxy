@@ -18,7 +18,7 @@ import logging
 import tarfile
 import tempfile
 import csv
-#from isatools import isatab ==> XXX ImportError: cannot import name zip_longest. Is isatools compatible with Python 2.7?
+from isatools import isatab #==> XXX ImportError: cannot import name zip_longest. Is isatools compatible with Python 2.7?
 #from isatools import isajson
 from json import dumps
 from io import BytesIO
