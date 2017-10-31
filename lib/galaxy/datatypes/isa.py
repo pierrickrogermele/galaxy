@@ -19,8 +19,8 @@ import tarfile
 import tempfile
 import csv
 # TODO Import of isatools-lite library for reading ISA-Tab and ISA-Json archives.
-#from isatools import isatab ==> XXX ImportError: cannot import name zip_longest. Is isatools compatible with Python 2.7?
-#from isatools import isajson
+# from isatools import isatab ==> XXX ImportError: cannot import name zip_longest. Is isatools compatible with Python 2.7?
+# from isatools import isajson
 from json import dumps
 from io import BytesIO
 from cgi import escape
@@ -54,11 +54,11 @@ logger.propagate = False
 logger.addHandler(ch)
 logger.setLevel(logging.DEBUG)
 
+
 # ISA class {{{1
 ################################################################
 
 class Isa(data.Data):
-
     """ Base class for implementing ISA datatypes """
     file_ext = "isa"
     composite_type = 'auto_primary_file'
@@ -90,14 +90,14 @@ class Isa(data.Data):
     class InvestigationTab(Investigation):
 
         def __init__(self, filename):
-	    super(self.__class__, self).__init__(filename)
+            super(self.__class__, self).__init__(filename)
 
         def parse(self):
             self.identifier = ''
             self.title = ''
             self.studies = []
             with open(self.filename, 'rb') as csvfile:
-                investigation_reader = csv.reader(csvfile, delimiter = "\t")
+                investigation_reader = csv.reader(csvfile, delimiter="\t")
                 current_section = None
                 study = None
                 for row in investigation_reader:
@@ -127,7 +127,7 @@ class Isa(data.Data):
     class InvestigationJson(Investigation):
 
         def __init__(self, filename):
-	    super(self.__class__, self).__init__(filename)
+            super(self.__class__, self).__init__(filename)
 
         def parse(self):
             self.identifier = ''
@@ -176,7 +176,8 @@ class Isa(data.Data):
         main_file = None
 
         # Detect type
-        if dataset and dataset.dataset and dataset.dataset.extra_files_path and os.path.exists(dataset.dataset.extra_files_path):
+        if dataset and dataset.dataset and dataset.dataset.extra_files_path and os.path.exists(
+                dataset.dataset.extra_files_path):
 
             # Get ISA archive older
             isa_folder = dataset.dataset.extra_files_path
@@ -194,7 +195,8 @@ class Isa(data.Data):
                 main_file = os.path.join(isa_folder, main_file)
 
             if main_file is None:
-                logger.warning('Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
+                logger.warning(
+                    'Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
         else:
             logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
 
@@ -205,8 +207,8 @@ class Isa(data.Data):
 
     @classmethod
     def _get_investigation(cls, dataset):
-        """Create a contained instance specific to the exact ISA type (Tab or Json). We will use it to parse and access information from the archive."""
-
+        """Create a contained instance specific to the exact ISA type (Tab or Json).
+           We will use it to parse and access information from the archive."""
         investigation = None
         main_file = cls._get_main_file(dataset)
         if main_file is not None:
@@ -434,7 +436,8 @@ class Isa(data.Data):
     ################################################################
 
     def generate_primary_file(self, dataset=None):
-        """Generate the primary file. It is an HTML file containing description of the composite dataset as well as a list of the composite files that it contains.""".
+        """Generate the primary file. It is an HTML file containing description of the composite dataset
+           as well as a list of the composite files that it contains."""
 
         logger.debug("Isa::generate_primary_file")
         if dataset:
@@ -469,7 +472,9 @@ class Isa(data.Data):
 
     def groom_dataset_content(self, file_name):
         """This method is called by Galaxy to extract files contained in a composite data type."""
-        # XXX Is the right place to extract files? Should this step not be a cleaning step instead? Could extracting be done earlier and composite files declared as files contained inside the archive instead of the archive itself?
+        # XXX Is the right place to extract files? Should this step not be a cleaning step instead?
+        # Could extracting be done earlier and composite files declared as files contained inside the archive
+        # instead of the archive itself?
 
         # extract basename and folder of the current file whose content has to be groomed
         basename = os.path.basename(file_name)
@@ -495,15 +500,20 @@ class Isa(data.Data):
     ################################################################
 
     def sniff(self, filename):
-        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence of an investigation file."""
-        # XXX Remove this method? This method seems to be unused for a composite data type. Inside the uploader tool, only the types of normal datasets can be detected automatically, the types of composite datasets are always specified manually.
+        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence
+           of an investigation file."""
+
+        # XXX Remove this method? This method seems to be unused for a composite data type.
+        # Inside the uploader tool, only the types of normal datasets can be detected automatically,
+        # the types of composite datasets are always specified manually.
 
         logger.debug("Checking if %s is an ISA.", filename)
 
         # Get the list of files within the compressed archive
         with open(filename, 'rb') as stream:
             files_list = self._list_archive_files(stream)
-            if self._find_isatab_investigation_filename(files_list) is not None or self._find_isajson_json_filename(files_list) is not None:
+            if self._find_isatab_investigation_filename(files_list) is not None \
+                    or self._find_isajson_json_filename(files_list) is not None:
                 return True
 
         return False
@@ -525,7 +535,8 @@ class Isa(data.Data):
 
         logger.debug('Isa::display_data Investigation %r', investigation)
         if investigation is None:
-            html = '<html><header><title>Error while reading ISA archive.</title></header><body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
+            html = '<html><header><title>Error while reading ISA archive.</title></header>' \
+                   '<body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
         else:
             html = '<html><body>'
             html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
