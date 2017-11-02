@@ -528,11 +528,19 @@ class Isa(data.Data):
     # Display data {{{2
     ################################################################
 
+
     def display_data(self, trans, dataset, preview=False, filename=None, to_ext=None, offset=None, ck_size=None, **kwd):
-        """Returns the HTML page needed for displaying when user click on the eye icon of the composite dataset."""
+        """Downloads the ISA dataset if `preview` is `False`;
+           if `preview` is `True`, it returns a preview of the ISA dataset as a HTML page.
+           The preview is triggered when user clicks on the eye icon of the composite dataset."""
 
+        # if it is not required a preview use the default behaviour of `display_data`
+        if not preview:
+            logger.debug("Use the default `display_data` behaviour")
+            return super(Isa, self).display_data(trans, dataset, preview, filename, to_ext, **kwd)
+
+        # prepare the preview of the ISA dataset
         investigation = self._get_investigation(dataset)
-
         logger.debug('Isa::display_data Investigation %r', investigation)
         if investigation is None:
             html = '<html><header><title>Error while reading ISA archive.</title></header>' \
