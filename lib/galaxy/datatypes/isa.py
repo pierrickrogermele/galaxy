@@ -18,9 +18,8 @@ import logging
 import tarfile
 import tempfile
 import csv
-# TODO Import of isatools-lite library for reading ISA-Tab and ISA-Json archives.
-# from isatools import isatab ==> XXX ImportError: cannot import name zip_longest. Is isatools compatible with Python 2.7?
-# from isatools import isajson
+from isatools import isatab
+from isatools import isajson
 from json import dumps
 from io import BytesIO
 from cgi import escape
@@ -52,7 +51,7 @@ ch.setFormatter(formatter)
 logger.handlers = []
 logger.propagate = False
 logger.addHandler(ch)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 
 
 # ISA class {{{1
@@ -153,9 +152,22 @@ class Isa(data.Data):
 
     @classmethod
     def _make_investigation(cls, filename):
+        
+        # Parse JSON file
         if filename[-5:].lower() == '.json':
-            return Isa.InvestigationJson(filename)
-        return Isa.InvestigationTab(filename)
+            return isajson.load(filename)
+        
+        # Parse ISA-Tab investigation file
+        parser = isatab.Parser()
+        parser.parse(filename)
+        isa = parser.isa
+        return isa
+        
+    """ Base class for implementing ISA datatypes """
+    file_ext = "isa"
+    composite_type = 'auto_primary_file'
+    allow_datatype_change = False
+    is_binary = True
 
     # Constructor {{{2
     ################################################################
