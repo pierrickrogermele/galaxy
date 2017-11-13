@@ -28,7 +28,15 @@ from galaxy.datatypes import data
 from galaxy.datatypes import metadata
 from galaxy.util.sanitize_html import sanitize_html
 
-# The name of the ISA archive (compressed file) as saved inside Galaxy
+# Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3
+def utf8_text_file_open(path):
+    if sys.version_info[0] < 3: 
+        fp = open(path, 'rb')
+    else:
+        fp = open(path, 'r', newline='', encoding='utf8')
+    return fp
+
+# the name of file containing the isa archive
 ISA_ARCHIVE_NAME = "archive"
 
 # Archives types
@@ -159,7 +167,8 @@ class Isa(data.Data):
         
         # Parse ISA-Tab investigation file
         parser = isatab.Parser()
-        parser.parse(filename)
+        fp = utf8_text_file_open(filename)
+        parser.parse(fp)
         isa = parser.isa
         return isa
         
