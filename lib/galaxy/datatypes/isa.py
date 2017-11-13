@@ -475,24 +475,19 @@ class Isa(data.Data):
     def generate_primary_file(self, dataset=None):
         """Generate the primary file. It is an HTML file containing description of the composite dataset
            as well as a list of the composite files that it contains."""
-
         logger.debug("Isa::generate_primary_file")
         if dataset:
             logger.debug("Dataset: %r", dataset)
             logger.debug("Isa::generate_primary_file " + str(dataset))
             rval = ['<html><head><title>ISA Dataset </title></head><p/>']
-            rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
-            for composite_name, composite_file in self.get_composite_files(dataset=dataset).items():
-                fn = composite_name
-                opt_text = ''
-                if composite_file.optional:
-                    opt_text = ' (optional)'
-                if composite_file.get('description'):
-                    rval.append('<li><a href="%s" type="text/plain">%s (%s)</a>%s</li>' % (
-                        fn, fn, composite_file.get('description'), opt_text))
-                else:
-                    rval.append('<li><a href="%s" type="text/plain">%s</a>%s</li>' % (fn, fn, opt_text))
-            rval.append('</ul></div></html>')
+            if hasattr(dataset, "extra_files_path"):
+                rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
+                for cmp_file in os.listdir(dataset.extra_files_path):
+                    opt_text = ''
+                    rval.append('<li><a href="%s" type="text/plain">%s</a>%s</li>' % (cmp_file, cmp_file, opt_text))
+                rval.append('</ul></div></html>')
+            else:
+                rval.append('<div>ISA Dataset is empty!<p/><ul>')
             logger.debug(" ".join(rval))
             return "\n".join(rval)
         return "<div>No dataset available</div>"
