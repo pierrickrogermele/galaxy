@@ -205,11 +205,21 @@ class Isa(data.Data):
         main_file = None
                 
         # Detect type
-        if dataset and dataset.dataset and dataset.dataset.extra_files_path and os.path.exists(
-                dataset.dataset.extra_files_path):
+        isa_folder = None
+        if dataset:
+            if hasattr(dataset, "extra_files_path"):
+                isa_folder = dataset.extra_files_path
+            if isa_folder is None and hasattr(dataset, "dataset") and hasattr(dataset.dataset, "extra_files_path"):
+                isa_folder = dataset.dataset.extra_files_path
+
+        if isa_folder is None:
+            logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
+        elif not os.path.exists(isa_folder):
+            logger.warning("The extra files path '%s' doesn't exit", isa_folder)
+        else:
+            logger.debug("The extra files folder is: %s", isa_folder)
 
             # Get ISA archive older
-            isa_folder = dataset.dataset.extra_files_path
             isa_files = os.listdir(isa_folder)
 
             # Try to find an ISA-Tab investigation file
@@ -226,8 +236,6 @@ class Isa(data.Data):
             if main_file is None:
                 logger.warning(
                     'Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
-        else:
-            logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
 
         return main_file
 
