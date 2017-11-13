@@ -72,91 +72,95 @@ class Isa(data.Data):
     allow_datatype_change = False
     is_binary = True
 
-#    # Included investigation classes {{{2
-#    ################################################################
-#    # XXX They are used to repace missing isatools library.
-#    # Once isatools is integrated, these classes will go away.
-#
-#    class Investigation(object):
-#        filename = None
-#        identifier = ''
-#        title = ''
-#        studies = []
-#
-#        def __init__(self, filename):
-#            self.filename = filename
-#            self.parse()
-#
-#    class Study(object):
-#        identifier = ''
-#        title = ''
-#        description = ''
-#        submission_date = ''
-#        public_release_date = ''
-#
-#    class InvestigationTab(Investigation):
-#
-#        def __init__(self, filename):
-#            super(self.__class__, self).__init__(filename)
-#
-#        def parse(self):
-#            self.identifier = ''
-#            self.title = ''
-#            self.studies = []
-#            with open(self.filename, 'rb') as csvfile:
-#                investigation_reader = csv.reader(csvfile, delimiter="\t")
-#                current_section = None
-#                study = None
-#                for row in investigation_reader:
-#                    if len(row) == 1:
-#                        current_section = row[0]
-#                    elif current_section == 'INVESTIGATION':
-#                        if row[0] == 'Investigation Identifier':
-#                            self.identifier = row[1]
-#                        if row[0] == 'Investigation Title':
-#                            self.title = row[1]
-#                    elif current_section == 'STUDY':
-#                        if study is None:
-#                            study = Isa.Study()
-#                        if row[0] == 'Study Identifier':
-#                            study.identifier = row[1]
-#                        if row[0] == 'Study Title':
-#                            study.title = row[1]
-#                        if row[0] == 'Study Description':
-#                            study.description = row[1]
-#                        if row[0] == 'Study Submission Date':
-#                            study.submission_date = row[1]
-#                        if row[0] == 'Study Public Release Date':
-#                            study.public_release_date = row[1]
-#                if study is not None:
-#                    self.studies.append(study)
-#
-#    class InvestigationJson(Investigation):
-#
-#        def __init__(self, filename):
-#            super(self.__class__, self).__init__(filename)
-#
-#        def parse(self):
-#            self.identifier = ''
-#            self.title = ''
-#            self.studies = []
-#            fp = open(self.filename)
-#            json_isa = json.load(fp)
-#            self.identifier = json_isa['identifier']
-#            self.title = json_isa['title']
-#            for study in json_isa['studies']:
-#                s = Isa.Study()
-#                if 'identifier' in study:
-#                    s.identifier = study['identifier']
-#                if 'title' in study:
-#                    s.title = study['title']
-#                if 'description' in study:
-#                    s.description = study['description']
-#                if 'submissionDate' in study:
-#                    s.submission_date = study['submissionDate']
-#                if 'publicReleaseDate' in study:
-#                    s.public_release_date = study['publicReleaseDate']
-#                self.studies.append(s)
+    # Add static metadata responsible for naming dataset instances
+    metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
+                             readonly=True, set_in_upload=True)
+
+    # Included investigation classes {{{2
+    ################################################################
+    # XXX They are used to repace missing isatools library.
+    # Once isatools is integrated, these classes will go away.
+
+    class Investigation(object):
+        filename = None
+        identifier = ''
+        title = ''
+        studies = []
+
+        def __init__(self, filename):
+            self.filename = filename
+            self.parse()
+
+    class Study(object):
+        identifier = ''
+        title = ''
+        description = ''
+        submission_date = ''
+        public_release_date = ''
+
+    class InvestigationTab(Investigation):
+
+        def __init__(self, filename):
+            super(self.__class__, self).__init__(filename)
+
+        def parse(self):
+            self.identifier = ''
+            self.title = ''
+            self.studies = []
+            with open(self.filename, 'rb') as csvfile:
+                investigation_reader = csv.reader(csvfile, delimiter="\t")
+                current_section = None
+                study = None
+                for row in investigation_reader:
+                    if len(row) == 1:
+                        current_section = row[0]
+                    elif current_section == 'INVESTIGATION':
+                        if row[0] == 'Investigation Identifier':
+                            self.identifier = row[1]
+                        if row[0] == 'Investigation Title':
+                            self.title = row[1]
+                    elif current_section == 'STUDY':
+                        if study is None:
+                            study = Isa.Study()
+                        if row[0] == 'Study Identifier':
+                            study.identifier = row[1]
+                        if row[0] == 'Study Title':
+                            study.title = row[1]
+                        if row[0] == 'Study Description':
+                            study.description = row[1]
+                        if row[0] == 'Study Submission Date':
+                            study.submission_date = row[1]
+                        if row[0] == 'Study Public Release Date':
+                            study.public_release_date = row[1]
+                if study is not None:
+                    self.studies.append(study)
+
+    class InvestigationJson(Investigation):
+
+        def __init__(self, filename):
+            super(self.__class__, self).__init__(filename)
+
+        def parse(self):
+            self.identifier = ''
+            self.title = ''
+            self.studies = []
+            fp = open(self.filename)
+            json_isa = json.load(fp)
+            self.identifier = json_isa['identifier']
+            self.title = json_isa['title']
+            for study in json_isa['studies']:
+                s = Isa.Study()
+                if 'identifier' in study:
+                    s.identifier = study['identifier']
+                if 'title' in study:
+                    s.title = study['title']
+                if 'description' in study:
+                    s.description = study['description']
+                if 'submissionDate' in study:
+                    s.submission_date = study['submissionDate']
+                if 'publicReleaseDate' in study:
+                    s.public_release_date = study['publicReleaseDate']
+                self.studies.append(s)
 
     @classmethod
     def _make_investigation(cls, filename):
@@ -549,6 +553,7 @@ class Isa(data.Data):
     def set_meta(self, dataset, **kwd):
         """???What is the purpose of this method?"""
         super(Isa, self).set_meta(dataset, **kwd)
+        dataset.name = "PLUTO"
 
     # Display data {{{2
     ################################################################
