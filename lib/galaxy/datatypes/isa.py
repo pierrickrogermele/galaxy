@@ -554,9 +554,10 @@ class Isa(data.Data):
     ################################################################
 
     def set_meta(self, dataset, **kwd):
-        """???What is the purpose of this method?"""
+        """Set meta data information."""
         super(Isa, self).set_meta(dataset, **kwd)
-        dataset.name = "PLUTO"
+        # TODO set name according to data found in investigation file.
+        #dataset.name = "PLUTO"
 
     # Display data {{{2
     ################################################################
