@@ -36,7 +36,7 @@ def utf8_text_file_open(path):
         fp = open(path, 'r', newline='', encoding='utf8')
     return fp
 
-# the name of file containing the isa archive
+# The name of the ISA archive (compressed file) as saved inside Galaxy
 ISA_ARCHIVE_NAME = "archive"
 
 # Archives types
@@ -73,118 +73,24 @@ class Isa(data.Data):
     is_binary = True
 
     # Add static metadata responsible for naming dataset instances
-    metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
-                             readonly=True, set_in_upload=True)
-
-    # Included investigation classes {{{2
-    ################################################################
-    # XXX They are used to repace missing isatools library.
-    # Once isatools is integrated, these classes will go away.
-
-    class Investigation(object):
-        filename = None
-        identifier = ''
-        title = ''
-        studies = []
-
-        def __init__(self, filename):
-            self.filename = filename
-            self.parse()
-
-    class Study(object):
-        identifier = ''
-        title = ''
-        description = ''
-        submission_date = ''
-        public_release_date = ''
-
-    class InvestigationTab(Investigation):
-
-        def __init__(self, filename):
-            super(self.__class__, self).__init__(filename)
-
-        def parse(self):
-            self.identifier = ''
-            self.title = ''
-            self.studies = []
-            with open(self.filename, 'rb') as csvfile:
-                investigation_reader = csv.reader(csvfile, delimiter="\t")
-                current_section = None
-                study = None
-                for row in investigation_reader:
-                    if len(row) == 1:
-                        current_section = row[0]
-                    elif current_section == 'INVESTIGATION':
-                        if row[0] == 'Investigation Identifier':
-                            self.identifier = row[1]
-                        if row[0] == 'Investigation Title':
-                            self.title = row[1]
-                    elif current_section == 'STUDY':
-                        if study is None:
-                            study = Isa.Study()
-                        if row[0] == 'Study Identifier':
-                            study.identifier = row[1]
-                        if row[0] == 'Study Title':
-                            study.title = row[1]
-                        if row[0] == 'Study Description':
-                            study.description = row[1]
-                        if row[0] == 'Study Submission Date':
-                            study.submission_date = row[1]
-                        if row[0] == 'Study Public Release Date':
-                            study.public_release_date = row[1]
-                if study is not None:
-                    self.studies.append(study)
-
-    class InvestigationJson(Investigation):
-
-        def __init__(self, filename):
-            super(self.__class__, self).__init__(filename)
-
-        def parse(self):
-            self.identifier = ''
-            self.title = ''
-            self.studies = []
-            fp = open(self.filename)
-            json_isa = json.load(fp)
-            self.identifier = json_isa['identifier']
-            self.title = json_isa['title']
-            for study in json_isa['studies']:
-                s = Isa.Study()
-                if 'identifier' in study:
-                    s.identifier = study['identifier']
-                if 'title' in study:
-                    s.title = study['title']
-                if 'description' in study:
-                    s.description = study['description']
-                if 'submissionDate' in study:
-                    s.submission_date = study['submissionDate']
-                if 'publicReleaseDate' in study:
-                    s.public_release_date = study['publicReleaseDate']
-                self.studies.append(s)
+#    metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
+#                             readonly=True, set_in_upload=True)
 
     @classmethod
     def _make_investigation(cls, filename):
         
-#        if filename[-5:].lower() == '.json':
-#            return Isa.InvestigationJson(filename)
-#        return Isa.InvestigationTab(filename)
-        
         # Parse JSON file
         if filename[-5:].lower() == '.json':
-            return isajson.load(filename)
+            fp = utf8_text_file_open(filename)
+            isa = isajson.load(fp)
+            return isa
         
         # Parse ISA-Tab investigation file
-        parser = isatab.Parser()
+        parser = isatab.InvestigationParser()
         fp = utf8_text_file_open(filename)
         parser.parse(fp)
         isa = parser.isa
         return isa
-        
-    """ Base class for implementing ISA datatypes """
-    file_ext = "isa"
-    composite_type = 'auto_primary_file'
-    allow_datatype_change = False
-    is_binary = True
 
     # Constructor {{{2
     ################################################################
@@ -192,6 +98,8 @@ class Isa(data.Data):
     def __init__(self, **kwd):
         data.Data.__init__(self, **kwd)
 
+        print('---------------------------- Isa::__init__ 01')
+        print('KWD %r' % kwd)
         # Add the archive file as the only composite file
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
@@ -203,20 +111,48 @@ class Isa(data.Data):
         """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
 
         main_file = None
+        print('---------------------------- Isa::_get_main_file 01')
+        print(type(dataset))
+        if hasattr(dataset, "dataset"):
+            print('---------------------------- Isa::_get_main_file 02')
+            print(type(dataset.dataset))
+            for attr, value in dataset.dataset.__dict__.iteritems():
+                print(str(attr) + ' : ' + str(value))
+            print('---------------------------- Isa::_get_main_file 03')
                 
         # Detect type
         isa_folder = None
         if dataset:
+            print('---------------------------- Isa::_get_main_file 02')
+#            for attr, value in dataset.__dict__.iteritems():
+#                print(str(attr) + ' : ' + str(value))
+            print('---------------------------- Isa::_get_main_file 02.0')
+
+#            print('dataset filename %r' % dataset.get_file_name())
+#            with open(dataset.get_file_name(), 'rb') as stream:
+#                a_type = self._detect_file_type(stream, output_path=output_path)
+#                print('File type: ' + str(a_type))
+            #print('dataset extra files path %r' % dataset.get_extra_files_path())
+            print('---------------------------- Isa::_get_main_file 02.1')
             if hasattr(dataset, "extra_files_path"):
+                print('---------------------------- Isa::_get_main_file 03')
                 isa_folder = dataset.extra_files_path
             if isa_folder is None and hasattr(dataset, "dataset") and hasattr(dataset.dataset, "extra_files_path"):
+                print('---------------------------- Isa::_get_main_file 04')
                 isa_folder = dataset.dataset.extra_files_path
+            print('---------------------------- Isa::_get_main_file 02.2')
+            print(isa_folder)
 
+        print('---------------------------- Isa::_get_main_file 05')
+        print(isa_folder)
         if isa_folder is None:
+            print('---------------------------- Isa::_get_main_file 06')
             logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
         elif not os.path.exists(isa_folder):
+            print('---------------------------- Isa::_get_main_file 07')
             logger.warning("The extra files path '%s' doesn't exit", isa_folder)
         else:
+            print('---------------------------- Isa::_get_main_file 08')
             logger.debug("The extra files folder is: %s", isa_folder)
 
             # Get ISA archive older
@@ -246,8 +182,11 @@ class Isa(data.Data):
     def _get_investigation(cls, dataset):
         """Create a contained instance specific to the exact ISA type (Tab or Json).
            We will use it to parse and access information from the archive."""
+
         investigation = None
         main_file = cls._get_main_file(dataset)
+        print('---------------------------- Isa::_get_investigation')
+        print(main_file)
         if main_file is not None:
             investigation = Isa._make_investigation(main_file)
 
@@ -333,7 +272,7 @@ class Isa(data.Data):
 
     def _extract_tar_archive(self, stream, target_path):
         """Extract files from a TAR archive."""
-
+        
         logger.debug("Isa::_extract_tar_archive")
         # extract the TAR archive
         logger.debug("Decompressing the TAR archive")
@@ -550,15 +489,76 @@ class Isa(data.Data):
 
         return False
 
+    def init_meta( self, dataset, copy_from=None ):
+        super(Isa, self).init_meta(dataset, copy_from)
+        print('---------------------------- Isa::init_meta 01')
+        print(type(dataset))
+        print(dataset)
+        print(dataset.name)
+        print('---------------------------- Isa::init_meta 01.1')
+        for attr, value in dataset.__dict__.iteritems():
+            print(str(attr) + ' : ' + str(value))
+        print('---------------------------- Isa::init_meta 02')
+        for attr, value in self.__dict__.iteritems():
+            print(str(attr) + ' : ' + str(value))
+        print('---------------------------- Isa::init_meta 03')
+        print(self.composite_files)
+        for attr, value in self.composite_files.__dict__.iteritems():
+            print(str(attr) + ' : ' + str(value))
+        print('---------------------------- Isa::init_meta 04')
+        print(self.composite_files['archive'])
+        for attr, value in self.composite_files['archive'].__dict__.iteritems():
+            print(str(attr) + ' : ' + str(value))
+        self._set_dataset_name(dataset)
+        print('---------------------------- Isa::init_meta 10')
+        print(dataset.name)
+        
     # Set meta {{{2
     ################################################################
 
-    def set_meta(self, dataset, **kwd):
+#    def set_meta(self, dataset, **kwd):
+    def set_meta( self, dataset, overwrite=True, **kwd ):
         """Set meta data information."""
+        print('---------------------------- Isa::set_meta')
+        print(dataset)
+        print(type(dataset))
+        print(dataset.name)
         super(Isa, self).set_meta(dataset, **kwd)
-        # TODO set name according to data found in investigation file.
-        #dataset.name = "PLUTO"
+        self._set_dataset_name(dataset)
+        return True
 
+    # Set dataset name {{{2
+    ################################################################
+    
+    def _set_dataset_name(self, dataset):
+        print('---------------------------- Isa::_set_dataset_name 01')
+        print(dataset)
+#        for attr, value in dataset.__dict__.iteritems():
+#            print(str(attr) + ' : ' + str(value))
+        print('---------------------------- Isa::_set_dataset_name 02')
+        if dataset.dataset:
+            print(dataset.dataset)
+            for attr, value in dataset.dataset.__dict__.iteritems():
+                print(str(attr) + ' : ' + str(value))
+        investigation = self._get_investigation(dataset)
+        if investigation is not None:
+            print('---------------------------- Isa::_set_dataset_name 10')
+            dataset.name = investigation.identifier
+        else:
+            dataset.name = 'ISA DATASET'
+        print('---------------------------- Isa::_set_dataset_name 20')
+        print(type(dataset))
+        print(dataset.name)
+
+    def display_name(self, dataset):
+        """Returns formatted html of dataset name"""
+        self._set_dataset_name(dataset)
+        print('-------------------------------- Isa::display_name 01')
+        print(type(dataset))
+        print(dataset.name)
+        print('-------------------------------- Isa::display_name 02')
+        super(Isa, self).display_name(dataset)
+        
     # Display data {{{2
     ################################################################
 
@@ -568,6 +568,11 @@ class Isa(data.Data):
            if `preview` is `True`, it returns a preview of the ISA dataset as a HTML page.
            The preview is triggered when user clicks on the eye icon of the composite dataset."""
 
+        print('-------------------------------- Isa::display_data 01')
+        print(dataset.name)
+        self._set_dataset_name(dataset)
+        print(dataset.name)
+        print('-------------------------------- Isa::display_data 02')
         # if it is not required a preview use the default behaviour of `display_data`
         if not preview:
             logger.debug("Use the default `display_data` behaviour")
@@ -575,15 +580,15 @@ class Isa(data.Data):
 
         # prepare the preview of the ISA dataset
         investigation = self._get_investigation(dataset)
-        logger.debug('Isa::display_data Investigation %r', investigation)
+        logger.debug('---------------------------- Isa::display_data Investigation %r', investigation)
         if investigation is None:
             html = '<html><header><title>Error while reading ISA archive.</title></header>' \
                    '<body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
         else:
             html = '<html><body>'
             html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
-            logger.debug('Isa::display_data Investigation title %r', investigation.title)
-            logger.debug('Isa::display_data %s studies', len(investigation.studies))
+            logger.debug('---------------------------- Isa::display_data Investigation title %r', investigation.title)
+            logger.debug('---------------------------- Isa::display_data %s studies', len(investigation.studies))
             for study in investigation.studies:
                 html += '<h2>Study %s</h2>' % study.identifier
                 html += '<h3>%s</h3>' % study.title
