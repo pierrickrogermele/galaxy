@@ -98,8 +98,6 @@ class Isa(data.Data):
     def __init__(self, **kwd):
         data.Data.__init__(self, **kwd)
 
-        print('---------------------------- Isa::__init__ 01')
-        print('KWD %r' % kwd)
         # Add the archive file as the only composite file
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
@@ -111,48 +109,20 @@ class Isa(data.Data):
         """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
 
         main_file = None
-        print('---------------------------- Isa::_get_main_file 01')
-        print(type(dataset))
-        if hasattr(dataset, "dataset"):
-            print('---------------------------- Isa::_get_main_file 02')
-            print(type(dataset.dataset))
-            for attr, value in dataset.dataset.__dict__.iteritems():
-                print(str(attr) + ' : ' + str(value))
-            print('---------------------------- Isa::_get_main_file 03')
                 
         # Detect type
         isa_folder = None
         if dataset:
-            print('---------------------------- Isa::_get_main_file 02')
-#            for attr, value in dataset.__dict__.iteritems():
-#                print(str(attr) + ' : ' + str(value))
-            print('---------------------------- Isa::_get_main_file 02.0')
-
-#            print('dataset filename %r' % dataset.get_file_name())
-#            with open(dataset.get_file_name(), 'rb') as stream:
-#                a_type = self._detect_file_type(stream, output_path=output_path)
-#                print('File type: ' + str(a_type))
-            #print('dataset extra files path %r' % dataset.get_extra_files_path())
-            print('---------------------------- Isa::_get_main_file 02.1')
             if hasattr(dataset, "extra_files_path"):
-                print('---------------------------- Isa::_get_main_file 03')
                 isa_folder = dataset.extra_files_path
             if isa_folder is None and hasattr(dataset, "dataset") and hasattr(dataset.dataset, "extra_files_path"):
-                print('---------------------------- Isa::_get_main_file 04')
                 isa_folder = dataset.dataset.extra_files_path
-            print('---------------------------- Isa::_get_main_file 02.2')
-            print(isa_folder)
 
-        print('---------------------------- Isa::_get_main_file 05')
-        print(isa_folder)
         if isa_folder is None:
-            print('---------------------------- Isa::_get_main_file 06')
             logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
         elif not os.path.exists(isa_folder):
-            print('---------------------------- Isa::_get_main_file 07')
             logger.warning("The extra files path '%s' doesn't exit", isa_folder)
         else:
-            print('---------------------------- Isa::_get_main_file 08')
             logger.debug("The extra files folder is: %s", isa_folder)
 
             # Get ISA archive older
@@ -185,8 +155,6 @@ class Isa(data.Data):
 
         investigation = None
         main_file = cls._get_main_file(dataset)
-        print('---------------------------- Isa::_get_investigation')
-        print(main_file)
         if main_file is not None:
             investigation = Isa._make_investigation(main_file)
 
@@ -491,27 +459,7 @@ class Isa(data.Data):
 
     def init_meta( self, dataset, copy_from=None ):
         super(Isa, self).init_meta(dataset, copy_from)
-        print('---------------------------- Isa::init_meta 01')
-        print(type(dataset))
-        print(dataset)
-        print(dataset.name)
-        print('---------------------------- Isa::init_meta 01.1')
-        for attr, value in dataset.__dict__.iteritems():
-            print(str(attr) + ' : ' + str(value))
-        print('---------------------------- Isa::init_meta 02')
-        for attr, value in self.__dict__.iteritems():
-            print(str(attr) + ' : ' + str(value))
-        print('---------------------------- Isa::init_meta 03')
-        print(self.composite_files)
-        for attr, value in self.composite_files.__dict__.iteritems():
-            print(str(attr) + ' : ' + str(value))
-        print('---------------------------- Isa::init_meta 04')
-        print(self.composite_files['archive'])
-        for attr, value in self.composite_files['archive'].__dict__.iteritems():
-            print(str(attr) + ' : ' + str(value))
         self._set_dataset_name(dataset)
-        print('---------------------------- Isa::init_meta 10')
-        print(dataset.name)
         
     # Set meta {{{2
     ################################################################
@@ -519,10 +467,6 @@ class Isa(data.Data):
 #    def set_meta(self, dataset, **kwd):
     def set_meta( self, dataset, overwrite=True, **kwd ):
         """Set meta data information."""
-        print('---------------------------- Isa::set_meta')
-        print(dataset)
-        print(type(dataset))
-        print(dataset.name)
         super(Isa, self).set_meta(dataset, **kwd)
         self._set_dataset_name(dataset)
         return True
@@ -531,32 +475,15 @@ class Isa(data.Data):
     ################################################################
     
     def _set_dataset_name(self, dataset):
-        print('---------------------------- Isa::_set_dataset_name 01')
-        print(dataset)
-#        for attr, value in dataset.__dict__.iteritems():
-#            print(str(attr) + ' : ' + str(value))
-        print('---------------------------- Isa::_set_dataset_name 02')
-        if dataset.dataset:
-            print(dataset.dataset)
-            for attr, value in dataset.dataset.__dict__.iteritems():
-                print(str(attr) + ' : ' + str(value))
         investigation = self._get_investigation(dataset)
         if investigation is not None:
-            print('---------------------------- Isa::_set_dataset_name 10')
             dataset.name = investigation.identifier
         else:
             dataset.name = 'ISA DATASET'
-        print('---------------------------- Isa::_set_dataset_name 20')
-        print(type(dataset))
-        print(dataset.name)
 
     def display_name(self, dataset):
         """Returns formatted html of dataset name"""
         self._set_dataset_name(dataset)
-        print('-------------------------------- Isa::display_name 01')
-        print(type(dataset))
-        print(dataset.name)
-        print('-------------------------------- Isa::display_name 02')
         super(Isa, self).display_name(dataset)
         
     # Display data {{{2
@@ -568,11 +495,7 @@ class Isa(data.Data):
            if `preview` is `True`, it returns a preview of the ISA dataset as a HTML page.
            The preview is triggered when user clicks on the eye icon of the composite dataset."""
 
-        print('-------------------------------- Isa::display_data 01')
-        print(dataset.name)
         self._set_dataset_name(dataset)
-        print(dataset.name)
-        print('-------------------------------- Isa::display_data 02')
         # if it is not required a preview use the default behaviour of `display_data`
         if not preview:
             logger.debug("Use the default `display_data` behaviour")
@@ -580,21 +503,34 @@ class Isa(data.Data):
 
         # prepare the preview of the ISA dataset
         investigation = self._get_investigation(dataset)
-        logger.debug('---------------------------- Isa::display_data Investigation %r', investigation)
         if investigation is None:
             html = '<html><header><title>Error while reading ISA archive.</title></header>' \
                    '<body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
         else:
             html = '<html><body>'
             html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
-            logger.debug('---------------------------- Isa::display_data Investigation title %r', investigation.title)
-            logger.debug('---------------------------- Isa::display_data %s studies', len(investigation.studies))
+            
+            # Loop on all studies
             for study in investigation.studies:
                 html += '<h2>Study %s</h2>' % study.identifier
                 html += '<h3>%s</h3>' % study.title
                 html += '<p>%s</p>' % study.description
                 html += '<p>Submitted the %s</p>' % study.submission_date
                 html += '<p>Released on %s</p>' % study.public_release_date
+                
+                # Loop on all assays of this study
+                for assay in study.assays:
+                    html += '<h3>Assay %s</h3>' % assay.filename
+                    html += '<p>Measurement type: %s</p>' % assay.measurement_type.term # OntologyAnnotation
+                    html += '<p>Technology type: %s</p>' % assay.technology_type.term # OntologyAnnotation
+                    html += '<p>Technology platform: %s</p>' % assay.technology_platform
+                    if assay.data_files is not None:
+                        html += '<p>Data files:</p>'
+                        html += '<ul>'
+                        for data_file in assay.data_files:
+                            html += '<li>%s - %s - %s</li>' % data_file.id % data_file.filename % data_file.label
+                        html += '</ul>'
+
             html += '</body></html>'
 
         # Set mime type
