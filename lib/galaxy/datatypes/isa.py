@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import re
 import os
+import os.path
 import sys
 import glob
 import json
@@ -27,6 +28,7 @@ from galaxy import util
 from galaxy.datatypes import data
 from galaxy.datatypes import metadata
 from galaxy.util.sanitize_html import sanitize_html
+from galaxy import model
 
 # Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3
 def utf8_text_file_open(path):
@@ -113,9 +115,13 @@ class Isa(data.Data):
         # Detect type
         isa_folder = None
         if dataset:
-            if hasattr(dataset, "extra_files_path"):
+            if isinstance(dataset, model.Dataset):
                 isa_folder = dataset.extra_files_path
-            if isa_folder is None and hasattr(dataset, "dataset") and hasattr(dataset.dataset, "extra_files_path"):
+            if isinstance(dataset, model.HistoryDatasetAssociation):
+                # XXX With this loop the dataset name is reset inside the history to the ISA archive ID. Why?
+                for attr, value in dataset.__dict__.iteritems():
+                    if str(attr) == '_metadata_collection':
+                        datatype = value.parent.datatype
                 isa_folder = dataset.dataset.extra_files_path
 
         if isa_folder is None:
@@ -464,7 +470,6 @@ class Isa(data.Data):
     # Set meta {{{2
     ################################################################
 
-#    def set_meta(self, dataset, **kwd):
     def set_meta( self, dataset, overwrite=True, **kwd ):
         """Set meta data information."""
         super(Isa, self).set_meta(dataset, **kwd)
