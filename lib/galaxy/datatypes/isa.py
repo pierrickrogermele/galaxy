@@ -30,13 +30,12 @@ from galaxy.datatypes import metadata
 from galaxy.util.sanitize_html import sanitize_html
 from galaxy import model
 
-# Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3
-def utf8_text_file_open(path):
-    if sys.version_info[0] < 3: 
-        fp = open(path, 'rb')
-    else:
-        fp = open(path, 'r', newline='', encoding='utf8')
-    return fp
+# CONSTANTS {{{1
+################################################################
+
+# Main files regex
+JSON_FILE_REGEX = re.compile(r"^.*\.json$", flags = re.IGNORECASE)
+INVESTIGATION_FILE_REGEX = re.compile(r"^i_\w+\.txt$", flags = re.IGNORECASE)
 
 # The name of the ISA archive (compressed file) as saved inside Galaxy
 ISA_ARCHIVE_NAME = "archive"
@@ -53,7 +52,9 @@ _FILE_TYPE_REGEX = re.compile("(%s)" % "|".join(map(re.escape, _FILE_TYPE_PREFIX
 # Set max number of lines of the history peek
 _MAX_LINES_HISTORY_PEEK = 11
 
-# Configure logger
+# Configure logger {{{1
+################################################################
+
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("%(name)s %(levelname)s %(asctime)s %(message)s")
@@ -63,57 +64,49 @@ logger.propagate = False
 logger.addHandler(ch)
 logger.setLevel(logging.ERROR)
 
+# Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3 {{{1
+################################################################
+
+def utf8_text_file_open(path):
+    if sys.version_info[0] < 3: 
+        fp = open(path, 'rb')
+    else:
+        fp = open(path, 'r', newline='', encoding='utf8')
+    return fp
 
 # ISA class {{{1
 ################################################################
 
 class Isa(data.Data):
     """ Base class for implementing ISA datatypes """
-    file_ext = "isa"
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
     is_binary = True
+    _main_file_regex = None
 
-    # Add static metadata responsible for naming dataset instances
-#    metadata.MetadataElement(name="base_name", desc="Generic dataset name", default="isa dataset",
-#                             readonly=True, set_in_upload=True)
-
-    @classmethod
-    def _make_investigation(cls, filename):
-        
-        # Parse JSON file
-        if filename[-5:].lower() == '.json':
-            fp = utf8_text_file_open(filename)
-            isa = isajson.load(fp)
-            return isa
-        
-        # Parse ISA-Tab investigation file
-        parser = isatab.InvestigationParser()
-        fp = utf8_text_file_open(filename)
-        parser.parse(fp)
-        isa = parser.isa
-        return isa
+    # Make investigation instance {{{2
+    ################################################################
+    
+    def _make_investigation_instance(self, filename):
+        raise NotImplementedError()
 
     # Constructor {{{2
     ################################################################
 
-    def __init__(self, **kwd):
-        data.Data.__init__(self, **kwd)
+    def __init__(self, main_file_regex, **kwd):
+        super(Isa, self).__init__(**kwd)
+        self._main_file_regex = main_file_regex
 
         # Add the archive file as the only composite file
         self.add_composite_file(ISA_ARCHIVE_NAME, is_binary=True, optional=True)
 
-    # Get main file {{{2
+    # Get ISA folder path {{{2
     ################################################################
-
-    @classmethod
-    def _get_main_file(cls, dataset):
-        """Get the main file of the ISA type: either the ISA-Tab investigation file, or the ISA-Json JSON file."""
-
-        main_file = None
-                
-        # Detect type
+    
+    def _get_isa_folder_path(self, dataset):
+        
         isa_folder = None
+        
         if dataset:
             if isinstance(dataset, model.Dataset):
                 isa_folder = dataset.extra_files_path
@@ -125,86 +118,66 @@ class Isa(data.Data):
                 isa_folder = dataset.dataset.extra_files_path
 
         if isa_folder is None:
-            logger.warning('Unvalid dataset object, or no extra files path found for this dataset.')
-        elif not os.path.exists(isa_folder):
-            logger.warning("The extra files path '%s' doesn't exit", isa_folder)
-        else:
-            logger.debug("The extra files folder is: %s", isa_folder)
+            raise Exception('Unvalid dataset object, or no extra files path found for this dataset.')
+        
+        return isa_folder
 
+    # Get main file {{{2
+    ################################################################
+
+    def _get_main_file(self, dataset):
+        """Get the main file of the ISA archive. Either the investigation file i_*.txt for ISA-Tab, or the JSON file for ISA-JSON."""
+
+        main_file = None
+        isa_folder = self._get_isa_folder_path(dataset)
+
+        if os.path.exists(isa_folder):
+            
             # Get ISA archive older
             isa_files = os.listdir(isa_folder)
 
-            # Try to find an ISA-Tab investigation file
-            main_file = cls._find_isatab_investigation_filename(isa_files)
+            # Try to find a JSON file
+            main_file = self._find_main_file_in_archive(isa_files)
 
-            # Try to find an ISA-Json JSON file
             if main_file is None:
-                main_file = cls._find_isajson_json_filename(isa_files)
+                raise Exception('Invalid ISA archive. No main file found.')
 
             # Make full path
-            if main_file is not None:
-                main_file = os.path.join(isa_folder, main_file)
-
-            if main_file is None:
-                logger.warning(
-                    'Unknown ISA archive type. Cannot determine if it is ISA-Tab or ISA-Json. Cannot find a main file.')
+            main_file = os.path.join(isa_folder, main_file)
 
         return main_file
 
     # Get investigation {{{2
     ################################################################
 
-    @classmethod
-    def _get_investigation(cls, dataset):
+    def _get_investigation(self, dataset):
         """Create a contained instance specific to the exact ISA type (Tab or Json).
            We will use it to parse and access information from the archive."""
 
         investigation = None
-        main_file = cls._get_main_file(dataset)
+        main_file = self._get_main_file(dataset)
         if main_file is not None:
-            investigation = Isa._make_investigation(main_file)
+            investigation = self._make_investigation_instance(main_file)
 
         return investigation
 
-    # Find ISA-Tab investigation filename {{{2
+    # Find main file in archive {{{2
     ################################################################
+    
+    def _find_main_file_in_archive(self, files_list):
+        """Find the main file inside the ISA archive."""
 
-    @classmethod
-    def _find_isatab_investigation_filename(cls, files_list):
-        """Find the investigation file inside the ISA-Tab archive."""
-        logger.debug("Finding investigation filename assuming an ISA-Tab dataset...")
-        res = []
+        found_file = None
+        
         for f in files_list:
-            logger.debug("Checking for matchings with file '%s'", f)
-            match = re.findall(r"^[i]_[\w]+\.txt", f, flags=re.IGNORECASE)
+            match = self._main_file_regex.match(f)
             if match:
-                res.append(match[0])
-                logger.debug("A match found: %r", match)
-        logger.debug("List of matches: %r", res)
-        if len(res) > 0:
-            if len(res) == 1:
-                investigation_filename = res[0]
-                logger.debug("Found primary file: %s", investigation_filename)
-                return investigation_filename
-            logger.error("More than one file match the pattern 'i_*.txt' to identify the investigation file")
-        return None
+                if found_file is None:
+                    found_file = match.group()
+                else:
+                    raise Exception('More than one file match the pattern "', str(file_regex), '" to identify the investigation file')
 
-    # Find ISA-Json JSON filename {{{2
-    ################################################################
-
-    @classmethod
-    def _find_isajson_json_filename(cls, files_list):
-        """Find the JSON file inside the ISA-Json archive."""
-        logger.debug("Finding investigation filename assuming an ISA-JSON dataset...")
-        res = [f for f in files_list if f.endswith(".json")]
-        logger.debug("List of matches: %r", res)
-        if len(res) > 0:
-            if len(res) == 1:
-                investigation_filename = res[0]
-                logger.debug("Found primary file: %s", investigation_filename)
-                return investigation_filename
-            logger.error("More than one JSON file match the pattern to identify the investigation file")
-        return None
+        return found_file
 
     # Extract archive {{{2
     ################################################################
@@ -233,8 +206,6 @@ class Isa(data.Data):
     def _extract_zip_archive(self, stream, target_path):
         """Extract files from a ZIP archive."""
 
-        logger.debug("Isa::_extract_zip_archive")
-        logger.debug("Decompressing the ZIP archive")
         temp_folder = tempfile.mkdtemp()
         data = BytesIO(stream.read())
         zip_ref = zipfile.ZipFile(data)
@@ -247,9 +218,7 @@ class Isa(data.Data):
     def _extract_tar_archive(self, stream, target_path):
         """Extract files from a TAR archive."""
         
-        logger.debug("Isa::_extract_tar_archive")
         # extract the TAR archive
-        logger.debug("Decompressing the TAR archive")
         temp_folder = tempfile.mkdtemp()
         with tarfile.open(fileobj=stream) as tar:
             tar.extractall(path=temp_folder)
@@ -261,11 +230,9 @@ class Isa(data.Data):
     def _move_to_target_path(self, temp_folder, target_path, delete_temp_folder=True):
         """Move extracted files to the destination folder imposed by Galaxy."""
 
-        logger.debug("Isa::_move_to_target_path")
         # find the root folder containing the dataset
         tmp_subfolders = [f for f in os.listdir(temp_folder) if
                           not f.startswith(".") and f not in (ISA_ARCHIVE_NAME, "__MACOSX")]
-        logger.debug("Files within the temp folder: %r", tmp_subfolders)
         # move files contained within the root dataset folder to their target path
         root_folder = os.path.join(temp_folder, tmp_subfolders[0])
         if len(tmp_subfolders) == 1 and os.path.isdir(root_folder):
@@ -285,7 +252,6 @@ class Isa(data.Data):
     def _list_archive_files(self, stream):
         """List files contained inside the ISA archive."""
 
-        logger.debug("Isa::_list_archive_files")
         # try to detect the type of the compressed archive
         a_type = self._detect_file_type(stream)
         # decompress the archive
@@ -301,7 +267,6 @@ class Isa(data.Data):
         # filter the base path if it exists
         if len(files_list) > 0:
             base_path = files_list[0].split("/")[0]
-            logger.debug("Base path: %s" % base_path)
             if base_path:
                 # the TAR archive encodes the base_path without a final '/'
                 if base_path in files_list:
@@ -323,14 +288,12 @@ class Isa(data.Data):
 
         :return: "zip" or "gz" if the file type is detected; None otherwise.
         """
-        logger.debug("Isa::_detect_file_type")
         file_type = None
         file_start = stream.read(_MAX_LEN_FILE_TYPE_PREFIX)
         stream.seek(0)  # reset the stream
         matched_prefix = _FILE_TYPE_REGEX.match(file_start)
         if matched_prefix:
             file_type = _FILE_TYPE_PREFIX[matched_prefix.string[matched_prefix.start():matched_prefix.end()]]
-        logger.debug("Detected file type: %s (prefix: %r)" % (file_type, file_start))
 
         return file_type
 
@@ -388,10 +351,8 @@ class Isa(data.Data):
     def generate_primary_file(self, dataset=None):
         """Generate the primary file. It is an HTML file containing description of the composite dataset
            as well as a list of the composite files that it contains."""
-        logger.debug("Isa::generate_primary_file")
+
         if dataset:
-            logger.debug("Dataset: %r", dataset)
-            logger.debug("Isa::generate_primary_file " + str(dataset))
             rval = ['<html><head><title>ISA Dataset </title></head><p/>']
             if hasattr(dataset, "extra_files_path"):
                 rval.append('<div>ISA Dataset composed of the following files:<p/><ul>')
@@ -401,7 +362,6 @@ class Isa(data.Data):
                 rval.append('</ul></div></html>')
             else:
                 rval.append('<div>ISA Dataset is empty!<p/><ul>')
-            logger.debug(" ".join(rval))
             return "\n".join(rval)
         return "<div>No dataset available</div>"
 
@@ -426,46 +386,11 @@ class Isa(data.Data):
         output_path = os.path.dirname(file_name)
         # extract archive if the file corresponds to the ISA archive
         if basename == ISA_ARCHIVE_NAME:
-            # list files before
-            logger.debug("Files in %s before grooming...", output_path)
-            for f in os.listdir(output_path):
-                logger.debug("File: %s", f)
-                logger.debug("Grooming dataset: %s", file_name)
             # perform extraction
             with open(file_name, 'rb') as stream:
                 self._extract_archive(stream, output_path=output_path)
             # remove the original archive file
             os.remove(file_name)
-            # list files after
-            logger.debug("Files in %s after grooming...", output_path)
-            for f in os.listdir(output_path):
-                logger.debug("File: %s", f)
-
-    # Sniff {{{2
-    ################################################################
-
-    def sniff(self, filename):
-        """Try to detect whether the actual archive contains an ISA archive simply searching for the existence
-           of an investigation file."""
-
-        # XXX Remove this method? This method seems to be unused for a composite data type.
-        # Inside the uploader tool, only the types of normal datasets can be detected automatically,
-        # the types of composite datasets are always specified manually.
-
-        logger.debug("Checking if %s is an ISA.", filename)
-
-        # Get the list of files within the compressed archive
-        with open(filename, 'rb') as stream:
-            files_list = self._list_archive_files(stream)
-            if self._find_isatab_investigation_filename(files_list) is not None \
-                    or self._find_isajson_json_filename(files_list) is not None:
-                return True
-
-        return False
-
-    def init_meta( self, dataset, copy_from=None ):
-        super(Isa, self).init_meta(dataset, copy_from)
-        self._set_dataset_name(dataset)
         
     # Set meta {{{2
     ################################################################
@@ -485,11 +410,6 @@ class Isa(data.Data):
             dataset.name = investigation.identifier
         else:
             dataset.name = 'ISA DATASET'
-
-    def display_name(self, dataset):
-        """Returns formatted html of dataset name"""
-        self._set_dataset_name(dataset)
-        super(Isa, self).display_name(dataset)
         
     # Display data {{{2
     ################################################################
@@ -503,14 +423,17 @@ class Isa(data.Data):
         self._set_dataset_name(dataset)
         # if it is not required a preview use the default behaviour of `display_data`
         if not preview:
-            logger.debug("Use the default `display_data` behaviour")
             return super(Isa, self).display_data(trans, dataset, preview, filename, to_ext, **kwd)
 
         # prepare the preview of the ISA dataset
         investigation = self._get_investigation(dataset)
         if investigation is None:
-            html = '<html><header><title>Error while reading ISA archive.</title></header>' \
-                   '<body><h1>An error occured while reading content of ISA archive.</h1></body></html>'
+            html = """<html><header><title>Error while reading ISA archive.</title></header>
+                   <body>
+                        <h1>An error occured while reading content of ISA archive.</h1>
+                        <p>If you have tried to load your archive with the uploader by selecting isa-tab as composite data type, then try to load it again with isa-json instead. Conversely, if you have tried to load your archive with the uploader by selecting isa-json as composite data type, then try isa-tab instead.</p>
+                        <p>You may also try to look into your zip file in order to find out if this is a proper ISA archive. If you see a file i_Investigation.txt inside, then it is an ISA-Tab archive. If you see a file with extension .json inside, then it is an ISA-JSON archive. If you see nothing like that, then either your ISA archive is corrupted, or it is not an ISA archive.</p>
+                   </body></html>"""
         else:
             html = '<html><body>'
             html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
@@ -533,7 +456,7 @@ class Isa(data.Data):
                         html += '<p>Data files:</p>'
                         html += '<ul>'
                         for data_file in assay.data_files:
-                            html += '<li>%s - %s - %s</li>' % data_file.id % data_file.filename % data_file.label
+                            html += '<li>' + str(data_file.id) + ' - ' + str(data_file.filename) + ' - ' + str(data_file.label) + '</li>'
                         html += '</ul>'
 
             html += '</body></html>'
@@ -543,3 +466,51 @@ class Isa(data.Data):
         self._clean_and_set_mime_type(trans, mime)
 
         return sanitize_html(html).encode('utf-8')
+
+# ISA-Tab class {{{1
+################################################################
+
+class IsaTab(Isa):
+    file_ext = "isa-tab"
+
+    # Constructor {{{2
+    ################################################################
+
+    def __init__(self, **kwd):
+        super(IsaTab, self).__init__(main_file_regex = INVESTIGATION_FILE_REGEX, **kwd)
+
+    # Make investigation instance {{{2
+    ################################################################
+        
+    def _make_investigation_instance(self, filename):
+
+        # Parse ISA-Tab investigation file
+        parser = isatab.InvestigationParser()
+        fp = utf8_text_file_open(filename)
+        parser.parse(fp)
+        isa = parser.isa
+        
+        return isa
+
+# ISA-JSON class {{{1
+################################################################
+
+class IsaJson(Isa):
+    file_ext = "isa-json"
+
+    # Constructor {{{2
+    ################################################################
+
+    def __init__(self, **kwd):
+        super(IsaJson, self).__init__(main_file_regex = JSON_FILE_REGEX, **kwd)
+
+    # Make investigation instance {{{2
+    ################################################################
+        
+    def _make_investigation_instance(self, filename):
+        
+        # Parse JSON file
+        fp = utf8_text_file_open(filename)
+        isa = isajson.load(fp)
+            
+        return isa
