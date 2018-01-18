@@ -77,7 +77,7 @@ def utf8_text_file_open(path):
 # ISA class {{{1
 ################################################################
 
-class Isa(data.Data):
+class _Isa(data.Data):
     """ Base class for implementing ISA datatypes """
     composite_type = 'auto_primary_file'
     allow_datatype_change = False
@@ -94,7 +94,7 @@ class Isa(data.Data):
     ################################################################
 
     def __init__(self, main_file_regex, **kwd):
-        super(Isa, self).__init__(**kwd)
+        super(_Isa, self).__init__(**kwd)
         self._main_file_regex = main_file_regex
 
         # Add the archive file as the only composite file
@@ -423,7 +423,7 @@ class Isa(data.Data):
         self._set_dataset_name(dataset)
         # if it is not required a preview use the default behaviour of `display_data`
         if not preview:
-            return super(Isa, self).display_data(trans, dataset, preview, filename, to_ext, **kwd)
+            return super(_Isa, self).display_data(trans, dataset, preview, filename, to_ext, **kwd)
 
         # prepare the preview of the ISA dataset
         investigation = self._get_investigation(dataset)
@@ -470,7 +470,7 @@ class Isa(data.Data):
 # ISA-Tab class {{{1
 ################################################################
 
-class IsaTab(Isa):
+class IsaTab(_Isa):
     file_ext = "isa-tab"
 
     # Constructor {{{2
@@ -489,13 +489,13 @@ class IsaTab(Isa):
         fp = utf8_text_file_open(filename)
         parser.parse(fp)
         isa = parser.isa
-        
+
         return isa
 
 # ISA-JSON class {{{1
 ################################################################
 
-class IsaJson(Isa):
+class IsaJson(_Isa):
     file_ext = "isa-json"
 
     # Constructor {{{2
