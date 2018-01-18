@@ -86,7 +86,7 @@ class _Isa(data.Data):
 
     # Make investigation instance {{{2
     ################################################################
-    
+
     def _make_investigation_instance(self, filename):
         raise NotImplementedError()
 
@@ -102,11 +102,11 @@ class _Isa(data.Data):
 
     # Get ISA folder path {{{2
     ################################################################
-    
+
     def _get_isa_folder_path(self, dataset):
-        
+
         isa_folder = None
-        
+
         if dataset:
             if isinstance(dataset, model.Dataset):
                 isa_folder = dataset.extra_files_path
@@ -119,7 +119,7 @@ class _Isa(data.Data):
 
         if isa_folder is None:
             raise Exception('Unvalid dataset object, or no extra files path found for this dataset.')
-        
+
         return isa_folder
 
     # Get main file {{{2
@@ -132,7 +132,7 @@ class _Isa(data.Data):
         isa_folder = self._get_isa_folder_path(dataset)
 
         if os.path.exists(isa_folder):
-            
+
             # Get ISA archive older
             isa_files = os.listdir(isa_folder)
 
@@ -163,12 +163,12 @@ class _Isa(data.Data):
 
     # Find main file in archive {{{2
     ################################################################
-    
+
     def _find_main_file_in_archive(self, files_list):
         """Find the main file inside the ISA archive."""
 
         found_file = None
-        
+
         for f in files_list:
             match = self._main_file_regex.match(f)
             if match:
@@ -217,7 +217,7 @@ class _Isa(data.Data):
 
     def _extract_tar_archive(self, stream, target_path):
         """Extract files from a TAR archive."""
-        
+
         # extract the TAR archive
         temp_folder = tempfile.mkdtemp()
         with tarfile.open(fileobj=stream) as tar:
@@ -391,26 +391,26 @@ class _Isa(data.Data):
                 self._extract_archive(stream, output_path=output_path)
             # remove the original archive file
             os.remove(file_name)
-        
+
     # Set meta {{{2
     ################################################################
 
     def set_meta( self, dataset, overwrite=True, **kwd ):
         """Set meta data information."""
-        super(Isa, self).set_meta(dataset, **kwd)
+        super(_Isa, self).set_meta(dataset, **kwd)
         self._set_dataset_name(dataset)
         return True
 
     # Set dataset name {{{2
     ################################################################
-    
+
     def _set_dataset_name(self, dataset):
         investigation = self._get_investigation(dataset)
         if investigation is not None:
             dataset.name = investigation.identifier
         else:
             dataset.name = 'ISA DATASET'
-        
+
     # Display data {{{2
     ################################################################
 
@@ -437,7 +437,7 @@ class _Isa(data.Data):
         else:
             html = '<html><body>'
             html += '<h1>{0} {1}</h1>'.format(investigation.title, investigation.identifier)
-            
+
             # Loop on all studies
             for study in investigation.studies:
                 html += '<h2>Study %s</h2>' % study.identifier
@@ -445,7 +445,7 @@ class _Isa(data.Data):
                 html += '<p>%s</p>' % study.description
                 html += '<p>Submitted the %s</p>' % study.submission_date
                 html += '<p>Released on %s</p>' % study.public_release_date
-                
+
                 # Loop on all assays of this study
                 for assay in study.assays:
                     html += '<h3>Assay %s</h3>' % assay.filename
@@ -481,7 +481,7 @@ class IsaTab(_Isa):
 
     # Make investigation instance {{{2
     ################################################################
-        
+
     def _make_investigation_instance(self, filename):
 
         # Parse ISA-Tab investigation file
@@ -506,11 +506,11 @@ class IsaJson(_Isa):
 
     # Make investigation instance {{{2
     ################################################################
-        
+
     def _make_investigation_instance(self, filename):
-        
+
         # Parse JSON file
         fp = utf8_text_file_open(filename)
         isa = isajson.load(fp)
-            
+
         return isa
