@@ -108,11 +108,12 @@ class ContainerFinder(object):
         # If destination forcing Galaxy to use a particular container do it,
         # this is likely kind of a corner case. For instance if deployers
         # do not trust the containers annotated in tools.
-#        log.info("Container classes %s" % CONTAINER_CLASSES)
+        log.info("Container classes %s" % CONTAINER_CLASSES)
         for container_type in CONTAINER_CLASSES.keys():
-            log.info("Container type %s" % str(container_type))
+            log.info("Container type %s" % container_type)
+            log.info("Container info %s" % container_info)
             container_id = self.__overridden_container_id(container_type, destination_info)
-#            log.info("Container ID %s" % container_id)
+            log.info("Container ID %s" % container_id)
             if container_id:
                 container = __destination_container(container_type=container_type, container_id=container_id)
                 if container:
@@ -147,12 +148,16 @@ class ContainerFinder(object):
         return NULL_CONTAINER
 
     def __overridden_container_id(self, container_type, destination_info):
+        log.info("ContainerFinder::__overridden_container_id 01")
         if not self.__container_type_enabled(container_type, destination_info):
             return None
+        log.info("ContainerFinder::__overridden_container_id 02")
         if "%s_container_id_override" % container_type in destination_info:
             return destination_info.get("%s_container_id_override" % container_type)
+        log.info("ContainerFinder::__overridden_container_id 03")
         if "%s_image_override" % container_type in destination_info:
             return self.__build_container_id_from_parts(container_type, destination_info, mode="override")
+        log.info("ContainerFinder::__overridden_container_id 04")
 
     def __build_container_id_from_parts(self, container_type, destination_info, mode):
         repo = ""
