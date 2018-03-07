@@ -76,10 +76,12 @@ class ContainerFinder(object):
     def find_container(self, tool_info, destination_info, job_info):
         enabled_container_types = self.__enabled_container_types(destination_info)
 
+        log.info("ContainerFinder::find_container 01")
         # Short-cut everything else and just skip checks if no container type is enabled.
         if not enabled_container_types:
             return NULL_CONTAINER
 
+        log.info("ContainerFinder::find_container 02")
         def __destination_container(container_description=None, container_id=None, container_type=None):
             if container_description:
                 container_id = container_description.identifier
@@ -94,6 +96,7 @@ class ContainerFinder(object):
             )
             return container
 
+        log.info("ContainerFinder::find_container 03")
         if "container_override" in destination_info:
             container_description = ContainerDescription.from_dict(destination_info["container_override"][0])
             if container_description:
@@ -101,6 +104,7 @@ class ContainerFinder(object):
                 if container:
                     return container
 
+        log.info("ContainerFinder::find_container 04")
         # If destination forcing Galaxy to use a particular container do it,
         # this is likely kind of a corner case. For instance if deployers
         # do not trust the containers annotated in tools.
@@ -111,12 +115,14 @@ class ContainerFinder(object):
                 if container:
                     return container
 
+        log.info("ContainerFinder::find_container 05")
         # Otherwise lets see if we can find container for the tool.
         container_description = self.find_best_container_description(enabled_container_types, tool_info)
         container = __destination_container(container_description)
         if container:
             return container
 
+        log.info("ContainerFinder::find_container 06")
         # If we still don't have a container, check to see if any container
         # types define a default container id and use that.
         if "container" in destination_info:
@@ -126,6 +132,7 @@ class ContainerFinder(object):
                 if container:
                     return container
 
+        log.info("ContainerFinder::find_container 08")
         for container_type in CONTAINER_CLASSES.keys():
             container_id = self.__default_container_id(container_type, destination_info)
             if container_id:
@@ -133,6 +140,7 @@ class ContainerFinder(object):
                 if container:
                     return container
 
+        log.info("ContainerFinder::find_container 10")
         return NULL_CONTAINER
 
     def __overridden_container_id(self, container_type, destination_info):
@@ -235,6 +243,7 @@ class ContainerRegistry(object):
 
     def find_best_container_description(self, enabled_container_types, tool_info):
         """Yield best container description of supplied types matching tool info."""
+        log.info("ContainerFinder::find_best_container_description 01")
         for container_resolver in self.container_resolvers:
             if hasattr(container_resolver, "container_type"):
                 if container_resolver.container_type not in enabled_container_types:
