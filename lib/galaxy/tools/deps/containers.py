@@ -108,10 +108,11 @@ class ContainerFinder(object):
         # If destination forcing Galaxy to use a particular container do it,
         # this is likely kind of a corner case. For instance if deployers
         # do not trust the containers annotated in tools.
+        log.info("Container classes %s" % type(CONTAINER_CLASSES).__name__)
         log.info("Container classes %s" % CONTAINER_CLASSES)
         for container_type in CONTAINER_CLASSES.keys():
             log.info("Container type %s" % container_type)
-#            log.info("Container info %s" % destination_info)
+            log.info("Container info %s" % type(destination_info).__name__)
             container_id = self.__overridden_container_id(container_type, destination_info)
             log.info("Container ID %s" % container_id)
             if container_id:
