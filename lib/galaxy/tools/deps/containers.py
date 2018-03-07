@@ -111,7 +111,7 @@ class ContainerFinder(object):
         log.info("Container classes %s" % CONTAINER_CLASSES)
         for container_type in CONTAINER_CLASSES.keys():
             log.info("Container type %s" % container_type)
-            log.info("Container info %s" % destination_info)
+#            log.info("Container info %s" % destination_info)
             container_id = self.__overridden_container_id(container_type, destination_info)
             log.info("Container ID %s" % container_id)
             if container_id:
