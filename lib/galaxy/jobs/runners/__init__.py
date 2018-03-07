@@ -333,6 +333,8 @@ class BaseJobRunner(object):
         compute_tool_directory=None,
         compute_job_directory=None,
     ):
+        log.info('BaseJobRunner::_find_container 01')
+        log.info('job_wrapper class %s', type(job_wrapper).__name__)
         job_directory_type = "galaxy" if compute_working_directory is None else "pulsar"
         if not compute_working_directory:
             compute_working_directory = job_wrapper.tool_working_directory
@@ -354,6 +356,7 @@ class BaseJobRunner(object):
         )
 
         destination_info = job_wrapper.job_destination.params
+        log.info('BaseJobRunner::_find_container 20')
         return self.app.container_finder.find_container(
             tool_info,
             destination_info,

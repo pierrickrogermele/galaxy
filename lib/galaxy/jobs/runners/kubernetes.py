@@ -87,6 +87,9 @@ class KubernetesJobRunner(AsynchronousJobRunner):
         # We currently don't need to include_metadata or include_work_dir_outputs, as working directory is the same
         # were galaxy will expect results.
         log.debug("Starting queue_job for job " + job_wrapper.get_id_tag())
+        log.info('job_wrapper class %s', type(job_wrapper).__name__)
+        log.info('job_wrapper.job_destination class %s', type(job_wrapper.job_destination).__name__)
+        log.info('job_wrapper.job_destination.params class %s', type(job_wrapper.job_destination.params).__name__)
         if not self.prepare_job(job_wrapper, include_metadata=False, modify_command_for_container=False):
             return
 
@@ -158,6 +161,7 @@ class KubernetesJobRunner(AsynchronousJobRunner):
 
     def __get_k8s_job_spec(self, job_wrapper):
         """Creates the k8s Job spec. For a Job spec, the only requirement is to have a .spec.template."""
+        log.info('KubernetesJobRunner::__get_k8s_job_spec 01')
         k8s_job_spec = {"template": self.__get_k8s_job_spec_template(job_wrapper)}
         return k8s_job_spec
 
@@ -165,6 +169,8 @@ class KubernetesJobRunner(AsynchronousJobRunner):
         """The k8s spec template is nothing but a Pod spec, except that it is nested and does not have an apiversion
         nor kind. In addition to required fields for a Pod, a pod template in a job must specify appropriate labels
         (see pod selector) and an appropriate restart policy."""
+        log.info('KubernetesJobRunner::__get_k8s_job_spec_template 01')
+        log.info('job_wrapper class %s', type(job_wrapper).__name__)
         k8s_spec_template = {
             "metadata": {
                 "labels": {"app": self.__produce_unique_k8s_job_name(job_wrapper.get_id_tag())}
@@ -210,6 +216,8 @@ class KubernetesJobRunner(AsynchronousJobRunner):
         """Fills in all required for setting up the docker containers to be used, including setting a pull policy if
            this has been set.
         """
+        log.info('KubernetesJobRunner::__get_k8s_containers 01')
+        log.info('job_wrapper class %s', type(job_wrapper).__name__)
         k8s_container = {
             "name": self.__get_k8s_container_name(job_wrapper),
             "image": self._find_container(job_wrapper).container_id,
