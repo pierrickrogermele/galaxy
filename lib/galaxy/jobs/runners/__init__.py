@@ -109,6 +109,9 @@ class BaseJobRunner(object):
     def put(self, job_wrapper):
         """Add a job to the queue (by job identifier), indicate that the job is ready to run.
         """
+        log.info("BaseJobRunner::put 01")
+        log.info("BaseJobRunner::put 02 job_wrapper.job_destination.params class %s" % type(job_wrapper.job_destination.params).__name__)
+        log.info("BaseJobRunner::put 02 job_wrapper.job_destination.params %s" % job_wrapper.job_destination.params)
         put_timer = ExecutionTimer()
         job = job_wrapper.get_job()
         # Change to queued state before handing to worker thread so the runner won't pick it up again
