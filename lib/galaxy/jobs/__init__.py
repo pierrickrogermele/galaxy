@@ -726,6 +726,7 @@ class JobWrapper(object, HasResourceParameters):
     """
 
     def __init__(self, job, queue, use_persisted_destination=False):
+        log.info("JobWrapper::__init__ 01 job class %s" %  type(job).__name__)
         self.job_id = job.id
         self.session_id = job.session_id
         self.user_id = job.user_id
@@ -757,6 +758,7 @@ class JobWrapper(object, HasResourceParameters):
             self.params = loads(job.params)
         if use_persisted_destination:
             self.job_runner_mapper.cached_job_destination = JobDestination(from_job=job)
+        log.info("JobWrapper::__init__ 100 self.params class %s" %  type(self.params).__name__)
 
         self.__commands_in_new_shell = True
         self.__user_system_pwent = None

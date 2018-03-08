@@ -88,6 +88,7 @@ class JobHandlerQueue(object):
         log.info("job handler queue started")
 
     def job_wrapper(self, job, use_persisted_destination=False):
+        log.info("JobHandlerQueue::job_wrapper 01 job class %s" % type(job).__name__)
         return JobWrapper(job, self, use_persisted_destination=use_persisted_destination)
 
     def job_pair_for_id(self, id):
